@@ -2,7 +2,7 @@
 
 Jogo de luta 2D em HTML5 Canvas + TypeScript.
 
-Versão **0.8** — Kharon, Nyx, Draven e Vespera. Loading real por luta.
+Versão **0.8.1** — pipeline de assets: clips dedicados, fallback, cache por luta, áudio separado.
 
 ## Modos
 
@@ -70,4 +70,4 @@ O combate roda 100% no cliente (`localStorage`). Auth/Postgres/Better Auth na pa
 
 ## Status
 
-Cada lutador tem sheets WebP em `public/fighters/<id>/` (idle, walk, attack, hurt, jump). Animações extras reusam o sheet mais próximo até existirem clips dedicados.
+Cada lutador tem sheets WebP em `public/fighters/<id>/` (idle, walk, attack, hurt, jump). Clips dedicados (`light.webp`, `super.webp`, `finish-1.webp`…) entram no manifest via `src` e o loader só baixa o que existir; o resto cai no sheet de grupo e depois no placeholder Canvas.

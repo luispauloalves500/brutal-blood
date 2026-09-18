@@ -3,7 +3,11 @@ import type { SpriteAnimator } from "./SpriteAnimator";
 
 export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, sprites: SpriteAnimator | null, shadows: boolean, debug = false) {
   const anim = mapAnim(f);
-  const drawn = sprites?.draw(ctx, anim, f.x, f.y, f.w, f.h, f.facing, f.stateTime);
+  const drawn = sprites?.draw(ctx, anim, f.x, f.y, f.w, f.h, f.facing, {
+    time: f.stateTime,
+    attack: f.attack,
+    attackFrame: f.attackFrame,
+  });
   if (!drawn) {
   ctx.save();
   ctx.translate(f.x + f.w / 2, f.y + f.h);
@@ -55,7 +59,8 @@ function mapAnim(f: Fighter): string {
   if (f.state === "block" && f.crouching) return "blockLow";
   if (f.state === "jump") return f.vy > 60 ? "fall" : f.stateTime < 0.08 ? "jumpStart" : "jump";
   if (f.state === "hit" && f.lastHitWasCounter) return "hitHeavy";
-  if (f.state === "finish") return "finish1";
+  if (f.state === "ko") return "knockdown";
+  if (f.state === "finish") return f.attack?.id === "finish2" ? "finish2" : "finish1";
   return f.state;
 }
 

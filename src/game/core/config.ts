@@ -1,6 +1,6 @@
 /** Single global config. Never redeclare DEBUG or these constants in other files. */
 export const GAME = {
-  VERSION: "0.8",
+  VERSION: "0.8.1",
   WIDTH: 1280,
   HEIGHT: 720,
   FPS: 60,

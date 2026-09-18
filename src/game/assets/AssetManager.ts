@@ -1,105 +1,188 @@
-export type CachedAsset = {
-  image: CanvasImageSource;
+type CacheEntry<T> = {
+  data: T;
   refs: number;
   last: number;
   bytes: number;
 };
 
 const MAX_IDLE_MS = 3 * 60 * 1000;
-const MAX_ENTRIES = 48;
+const MAX_ENTRIES = 64;
 
 export class AssetManager {
-  private cache = new Map<string, CachedAsset>();
-  private inflight = new Map<string, Promise<CanvasImageSource>>();
+  private images = new Map<string, CacheEntry<CanvasImageSource>>();
+  private audio = new Map<string, CacheEntry<AudioBuffer>>();
+  private inflightImg = new Map<string, Promise<CanvasImageSource>>();
+  private inflightAud = new Map<string, Promise<AudioBuffer>>();
 
-  has(url: string) {
-    return this.cache.has(url);
+  hasImage(url: string) {
+    return this.images.has(url);
   }
 
-  get(url: string): CanvasImageSource | undefined {
-    const hit = this.cache.get(url);
+  hasAudio(url: string) {
+    return this.audio.has(url);
+  }
+
+  has(url: string) {
+    return this.hasImage(url) || this.hasAudio(url);
+  }
+
+  getImage(url: string): CanvasImageSource | undefined {
+    const hit = this.images.get(url);
     if (hit) hit.last = performance.now();
-    return hit?.image;
+    return hit?.data;
+  }
+
+  /** @deprecated use getImage */
+  get(url: string): CanvasImageSource | undefined {
+    return this.getImage(url);
+  }
+
+  getAudio(url: string): AudioBuffer | undefined {
+    const hit = this.audio.get(url);
+    if (hit) hit.last = performance.now();
+    return hit?.data;
   }
 
   async loadImage(url: string, signal?: AbortSignal): Promise<CanvasImageSource> {
-    const hit = this.cache.get(url);
+    const hit = this.images.get(url);
     if (hit) {
       hit.refs += 1;
       hit.last = performance.now();
-      return hit.image;
+      return hit.data;
     }
-    const pending = this.inflight.get(url);
+    const pending = this.inflightImg.get(url);
     if (pending) {
       const img = await pending;
-      const c = this.cache.get(url);
+      const c = this.images.get(url);
       if (c) c.refs += 1;
       return img;
     }
-    const job = this.fetchDecode(url, signal).then((image) => {
-      this.inflight.delete(url);
-      const prev = this.cache.get(url);
+    const job = this.fetchImage(url, signal).then((image) => {
+      this.inflightImg.delete(url);
+      const prev = this.images.get(url);
       if (prev) {
         prev.refs += 1;
         prev.last = performance.now();
-        return prev.image;
+        return prev.data;
       }
-      this.cache.set(url, { image, refs: 1, last: performance.now(), bytes: 0 });
+      this.images.set(url, { data: image, refs: 1, last: performance.now(), bytes: 0 });
       this.sweep();
       return image;
     }).catch((err) => {
-      this.inflight.delete(url);
+      this.inflightImg.delete(url);
       throw err;
     });
-    this.inflight.set(url, job);
+    this.inflightImg.set(url, job);
+    return job;
+  }
+
+  async loadAudio(url: string, ctx: AudioContext | null | undefined, signal?: AbortSignal): Promise<AudioBuffer> {
+    const hit = this.audio.get(url);
+    if (hit) {
+      hit.refs += 1;
+      hit.last = performance.now();
+      return hit.data;
+    }
+    if (!ctx) throw new Error(`audio context missing: ${url}`);
+    const pending = this.inflightAud.get(url);
+    if (pending) {
+      const buf = await pending;
+      const c = this.audio.get(url);
+      if (c) c.refs += 1;
+      return buf;
+    }
+    const job = this.fetchAudio(url, ctx, signal).then((buffer) => {
+      this.inflightAud.delete(url);
+      const prev = this.audio.get(url);
+      if (prev) {
+        prev.refs += 1;
+        prev.last = performance.now();
+        return prev.data;
+      }
+      this.audio.set(url, { data: buffer, refs: 1, last: performance.now(), bytes: buffer.length * 4 });
+      this.sweep();
+      return buffer;
+    }).catch((err) => {
+      this.inflightAud.delete(url);
+      throw err;
+    });
+    this.inflightAud.set(url, job);
     return job;
   }
 
   acquire(url: string) {
-    const hit = this.cache.get(url);
-    if (hit) {
-      hit.refs += 1;
-      hit.last = performance.now();
+    const img = this.images.get(url);
+    if (img) {
+      img.refs += 1;
+      img.last = performance.now();
+      return;
+    }
+    const aud = this.audio.get(url);
+    if (aud) {
+      aud.refs += 1;
+      aud.last = performance.now();
     }
   }
 
   release(url: string) {
-    const hit = this.cache.get(url);
-    if (!hit) return;
-    hit.refs = Math.max(0, hit.refs - 1);
-    hit.last = performance.now();
+    const img = this.images.get(url);
+    if (img) {
+      img.refs = Math.max(0, img.refs - 1);
+      img.last = performance.now();
+      return;
+    }
+    const aud = this.audio.get(url);
+    if (aud) {
+      aud.refs = Math.max(0, aud.refs - 1);
+      aud.last = performance.now();
+    }
   }
 
   releaseAll(urls: string[]) {
-    for (const u of urls) this.release(u);
+    const seen = new Set<string>();
+    for (const u of urls) {
+      if (seen.has(u)) continue;
+      seen.add(u);
+      this.release(u);
+    }
   }
 
   /** Drop unused entries that have been idle. Never evicts ref > 0. */
   sweep(now = performance.now()) {
-    if (this.cache.size <= MAX_ENTRIES) {
-      for (const [k, v] of this.cache) {
-        if (v.refs <= 0 && now - v.last > MAX_IDLE_MS) this.drop(k, v);
+    this.sweepMap(this.images, now, (v) => {
+      const img = v.data;
+      if (typeof ImageBitmap !== "undefined" && img instanceof ImageBitmap) img.close();
+    });
+    this.sweepMap(this.audio, now);
+  }
+
+  private sweepMap<T>(map: Map<string, CacheEntry<T>>, now: number, drop?: (v: CacheEntry<T>) => void) {
+    if (map.size <= MAX_ENTRIES) {
+      for (const [k, v] of map) {
+        if (v.refs <= 0 && now - v.last > MAX_IDLE_MS) {
+          drop?.(v);
+          map.delete(k);
+        }
       }
       return;
     }
-    const idle = [...this.cache.entries()]
-      .filter(([, v]) => v.refs <= 0)
-      .sort((a, b) => a[1].last - b[1].last);
+    const idle = [...map.entries()].filter(([, v]) => v.refs <= 0).sort((a, b) => a[1].last - b[1].last);
     for (const [k, v] of idle) {
-      if (this.cache.size <= MAX_ENTRIES) break;
-      this.drop(k, v);
+      if (map.size <= MAX_ENTRIES) break;
+      drop?.(v);
+      map.delete(k);
     }
   }
 
-  private drop(key: string, v: CachedAsset) {
-    const img = v.image;
-    if (typeof ImageBitmap !== "undefined" && img instanceof ImageBitmap) img.close();
-    this.cache.delete(key);
+  private async fetchImage(url: string, signal?: AbortSignal): Promise<CanvasImageSource> {
+    return loadHtmlImage(url, signal);
   }
 
-  private async fetchDecode(url: string, signal?: AbortSignal): Promise<CanvasImageSource> {
-    const img = await loadHtmlImage(url, signal);
-    return img;
+  private async fetchAudio(url: string, ctx: AudioContext, signal?: AbortSignal): Promise<AudioBuffer> {
+    const res = await fetch(url, { signal, cache: "force-cache" });
+    if (!res.ok) throw new Error(`${res.status} ${url}`);
+    const raw = await res.arrayBuffer();
+    return await ctx.decodeAudioData(raw.slice(0));
   }
 }
 

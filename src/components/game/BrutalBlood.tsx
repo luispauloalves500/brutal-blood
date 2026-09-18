@@ -98,7 +98,7 @@ export function BrutalBlood() {
   const [bracket, setBracket] = useState<TourneyBracket | null>(null);
   const [storyCard, setStoryCard] = useState<{ campaign: StoryCampaign; index: number } | null>(null);
   const [storyCleared, setStoryCleared] = useState<string[]>([]);
-  const [loadProg, setLoadProg] = useState<LoadProgress>({ loaded: 0, total: 1, percent: 0, current: "", failed: [] });
+  const [loadProg, setLoadProg] = useState<LoadProgress>({ loaded: 0, total: 1, percent: 0, current: "", failed: [], cached: 0 });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadHint, setLoadHint] = useState("");
   const packRef = useRef<FightAssetPack | null>(null);
@@ -262,7 +262,7 @@ export function BrutalBlood() {
     };
     setLoadHint(p1.introLine || foe.introLine || "O sangue espera.");
     setLoadError(null);
-    setLoadProg({ loaded: 0, total: Math.max(1, collectFightJobs({ p1: p1.id, p2: foe.id, stage }).length), percent: 0, current: "", failed: [] });
+    setLoadProg({ loaded: 0, total: Math.max(1, collectFightJobs({ p1: p1.id, p2: foe.id, stage }).length), percent: 0, current: "", failed: [], cached: 0 });
     setScreen("loading");
     void runLoad();
   };
@@ -276,9 +276,19 @@ export function BrutalBlood() {
     try {
       const pack = await loadFightAssets(
         { p1: pending.p1.id, p2: pending.p2.id, stage: pending.stageId },
-        { signal: ac.signal, onProgress: setLoadProg },
+        {
+          signal: ac.signal,
+          onProgress: setLoadProg,
+          audioContext: audioRef.current?.context() ?? null,
+        },
       );
-      if (ac.signal.aborted) return;
+      if (ac.signal.aborted) {
+        releaseFightAssets(pack);
+        return;
+      }
+      if (packRef.current && packRef.current !== pack) {
+        releaseFightAssets(packRef.current);
+      }
       packRef.current = pack;
       launchMatch(pending, pack);
     } catch (e) {
@@ -1300,11 +1310,17 @@ function LoadingView(props: {
       {props.progress.current && !props.error && (
         <p className="mt-1 truncate text-[0.65rem] text-mute">{props.progress.current}</p>
       )}
-      {props.error && (
-        <div className="mt-6 flex gap-3">
+      {props.progress.cached > 0 && !props.error && (
+        <p className="mt-1 text-[0.65rem] text-mute">cache {props.progress.cached}/{props.progress.total}</p>
+      )}
+      <div className="mt-6 flex gap-3">
+        {props.error && (
           <button type="button" className="bb-btn bb-btn-primary" onClick={props.onRetry}>Tentar novamente</button>
-          <button type="button" className="bb-btn" onClick={props.onBack}>Voltar</button>
-        </div>
+        )}
+        <button type="button" className="bb-btn" onClick={props.onBack}>Voltar</button>
+      </div>
+      {props.error && (
+        <p className="mt-3 max-w-md text-center text-sm text-blood">{props.error}</p>
       )}
     </section>
   );

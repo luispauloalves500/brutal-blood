@@ -1,7 +1,7 @@
 import { clip, clipMap, bindSheets, fighterSheets } from "../clips";
 import type { CharacterAssetManifest } from "../types";
 
-/** Carrasco pesado. Sheets under /fighters/kharon/*.webp when art lands. */
+/** Carrasco. Dedicated src (light.webp, super.webp…) overrides fallback group sheets. */
 export const kharonAssets: CharacterAssetManifest = {
   id: "kharon",
   portrait: "/fighters/kharon.webp",

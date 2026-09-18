@@ -54,6 +54,26 @@ export class AudioManager {
     if (this.ctx?.state === "suspended") void this.ctx.resume();
   }
 
+  context() {
+    return this.ctx;
+  }
+
+  playBuffer(buffer: AudioBuffer, bus: Bus = "sfx", vol = 0.8) {
+    if (!this.unlocked || !this.ctx || !this.bus(bus)) return;
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buffer;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    src.connect(g);
+    g.connect(this.bus(bus)!);
+    src.start(t);
+    src.onended = () => {
+      src.disconnect();
+      g.disconnect();
+    };
+  }
+
   private bus(name: Bus): GainNode | null {
     return this.buses[name];
   }

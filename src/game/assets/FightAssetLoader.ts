@@ -9,8 +9,6 @@ export type FightLoadRequest = {
   stage: string;
 };
 
-let lastKeys: string[] = [];
-
 export function collectFightJobs(req: FightLoadRequest): AssetJob[] {
   const jobs: AssetJob[] = [];
   const seen = new Set<string>();
@@ -23,8 +21,11 @@ export function collectFightJobs(req: FightLoadRequest): AssetJob[] {
   for (const id of [req.p1, req.p2]) {
     const man = getCharacterAssets(id);
     if (man.portrait) add({ key: `${id}:portrait`, url: man.portrait, kind: "portrait", critical: false });
+    const idleSrc = man.clips.idle?.src || man.clips.idle?.fallbackSrc;
+    if (idleSrc) add({ key: `${id}:idle`, url: idleSrc, kind: "sheet", critical: true });
     for (const clip of Object.values(man.clips)) {
       if (clip.src) add({ key: `${id}:${clip.name}`, url: clip.src, kind: "sheet", critical: false });
+      if (clip.fallbackSrc) add({ key: `${id}:fb:${clip.name}`, url: clip.fallbackSrc, kind: "sheet", critical: false });
     }
     for (const fx of man.effects) add({ key: `${id}:fx:${fx}`, url: fx, kind: "effect", critical: false });
     for (const a of man.audio) add({ key: `${id}:sfx:${a}`, url: a, kind: "audio", critical: false });
@@ -33,6 +34,7 @@ export function collectFightJobs(req: FightLoadRequest): AssetJob[] {
   const stage = getStageAssets(req.stage);
   if (stage.backdrop) add({ key: `stage:${stage.id}`, url: stage.backdrop, kind: "stage", critical: false });
   if (stage.music) add({ key: `stage:music:${stage.id}`, url: stage.music, kind: "audio", critical: false });
+  for (const fx of stage.effects ?? []) add({ key: `stage:fx:${fx}`, url: fx, kind: "effect", critical: false });
 
   return jobs;
 }
@@ -42,11 +44,20 @@ export async function loadFightAssets(
   opts: {
     onProgress?: (p: LoadProgress) => void;
     signal?: AbortSignal;
+    audioContext?: AudioContext | null;
   } = {},
 ): Promise<FightAssetPack> {
   const jobs = collectFightJobs(req);
   const failed: { url: string; error: string }[] = [];
-  const loadedUrls: string[] = [];
+  const criticalFailed: { url: string; error: string }[] = [];
+  const acquired: string[] = [];
+  let cached = 0;
+
+  const releasePartial = () => {
+    assets.releaseAll(acquired);
+    acquired.length = 0;
+  };
+
   const report = (loaded: number, current: string) => {
     const total = Math.max(1, jobs.length);
     opts.onProgress?.({
@@ -55,44 +66,67 @@ export async function loadFightAssets(
       percent: Math.round((loaded / total) * 100),
       current,
       failed,
+      cached,
     });
   };
 
-  if (jobs.length === 0) {
-    report(1, "pronto");
-  }
+  if (jobs.length === 0) report(1, "pronto");
 
   let done = 0;
-  for (const job of jobs) {
-    if (opts.signal?.aborted) throw new DOMException("Aborted", "AbortError");
-    report(done, job.url);
-    try {
-      await assets.loadImage(job.url, opts.signal);
-      loadedUrls.push(job.url);
-    } catch (e) {
-      const error = e instanceof Error ? e.message : String(e);
-      failed.push({ url: job.url, error });
-      if (job.critical) throw e;
+  try {
+    for (const job of jobs) {
+      if (opts.signal?.aborted) {
+        releasePartial();
+        throw new DOMException("Aborted", "AbortError");
+      }
+      report(done, job.url);
+      const already = job.kind === "audio" ? assets.hasAudio(job.url) : assets.hasImage(job.url);
+      try {
+        if (job.kind === "audio") {
+          await assets.loadAudio(job.url, opts.audioContext ?? null, opts.signal);
+        } else {
+          await assets.loadImage(job.url, opts.signal);
+        }
+        acquired.push(job.url);
+        if (already) cached += 1;
+      } catch (e) {
+        if (opts.signal?.aborted) {
+          releasePartial();
+          throw new DOMException("Aborted", "AbortError");
+        }
+        const error = e instanceof Error ? e.message : String(e);
+        failed.push({ url: job.url, error });
+        if (job.critical) criticalFailed.push({ url: job.url, error });
+      }
+      done += 1;
+      report(done, job.url);
     }
-    done += 1;
-    report(done, job.url);
+  } catch (e) {
+    if ((e as DOMException)?.name === "AbortError") throw e;
+    releasePartial();
+    throw e;
   }
 
-  assets.releaseAll(lastKeys.filter((k) => !loadedUrls.includes(k)));
-  lastKeys = loadedUrls;
+  if (criticalFailed.length) {
+    releasePartial();
+    const err = new Error(`Asset crítico falhou: ${criticalFailed[0].url}`);
+    throw err;
+  }
+
   assets.sweep();
 
   const packFor = (id: string): CharacterSpritePack => {
     const man = getCharacterAssets(id);
     const images = new Map<string, CanvasImageSource>();
-    if (man.portrait) {
-      const img = assets.get(man.portrait);
-      if (img) images.set(man.portrait, img);
-    }
+    const take = (url?: string) => {
+      if (!url) return;
+      const img = assets.getImage(url);
+      if (img) images.set(url, img);
+    };
+    take(man.portrait);
     for (const clip of Object.values(man.clips)) {
-      if (!clip.src) continue;
-      const img = assets.get(clip.src);
-      if (img) images.set(clip.src, img);
+      take(clip.src);
+      take(clip.fallbackSrc);
     }
     return { id, clips: man.clips, images };
   };
@@ -100,22 +134,32 @@ export async function loadFightAssets(
   const stage = getStageAssets(req.stage);
   const stageImages = new Map<string, CanvasImageSource>();
   if (stage.backdrop) {
-    const img = assets.get(stage.backdrop);
+    const img = assets.getImage(stage.backdrop);
     if (img) stageImages.set(stage.backdrop, img);
+  }
+
+  const audio = new Map<string, AudioBuffer>();
+  for (const job of jobs) {
+    if (job.kind !== "audio") continue;
+    const buf = assets.getAudio(job.url);
+    if (buf) audio.set(job.url, buf);
   }
 
   return {
     p1: packFor(req.p1),
     p2: packFor(req.p2),
     stageImages,
-    keys: loadedUrls,
+    audio,
+    keys: acquired,
     failed,
+    criticalFailed,
   };
 }
 
 export function releaseFightAssets(pack: FightAssetPack | null) {
-  if (!pack) return;
+  if (!pack || pack.released) return;
+  pack.released = true;
   assets.releaseAll(pack.keys);
-  lastKeys = lastKeys.filter((k) => !pack.keys.includes(k));
+  pack.keys = [];
   assets.sweep();
 }

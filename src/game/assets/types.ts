@@ -34,8 +34,12 @@ export type AnimName =
 /** Visual clip. Combat hitboxes stay on Fighter — never derived from frame size. */
 export type AnimClip = {
   name: AnimName;
-  /** Set only when the WebP actually exists. Missing src → canvas placeholder. */
+  /** Dedicated sheet when the file exists and was loaded. */
   src?: string;
+  /** Next clip name if dedicated src is missing. */
+  fallback?: AnimName;
+  /** Group sheet used when dedicated src is not in cache (idle/walk/attack/hurt/jump). */
+  fallbackSrc?: string;
   frames: number;
   fps: number;
   loop: boolean;
@@ -45,6 +49,18 @@ export type AnimClip = {
   row?: number;
   rows?: number;
   columns?: number;
+  /** Visual-only. Never touches hitboxes. */
+  scale?: number;
+  offsetX?: number;
+  offsetY?: number;
+  reverseFrames?: boolean;
+  /** Optional remap of attackFrame → sheet frame. */
+  frameMap?: number[];
+  /** Layout of fallbackSrc (group sheet). Used only when drawing the fallback image. */
+  sheetFrames?: number;
+  sheetColumns?: number;
+  sheetRows?: number;
+  sheetFps?: number;
 };
 
 export type CharacterAssetManifest = {
@@ -60,6 +76,7 @@ export type StageAssetManifest = {
   name: string;
   backdrop?: string;
   music?: string;
+  effects?: string[];
 };
 
 export type AssetKind = "portrait" | "sheet" | "stage" | "effect" | "audio" | "ui";
@@ -77,6 +94,7 @@ export type LoadProgress = {
   percent: number;
   current: string;
   failed: { url: string; error: string }[];
+  cached: number;
 };
 
 export type CharacterSpritePack = {
@@ -89,6 +107,10 @@ export type FightAssetPack = {
   p1: CharacterSpritePack;
   p2: CharacterSpritePack;
   stageImages: Map<string, CanvasImageSource>;
+  audio: Map<string, AudioBuffer>;
+  /** URLs this pack acquired (one ref each). Unique even if P1===P2. */
   keys: string[];
   failed: { url: string; error: string }[];
+  criticalFailed: { url: string; error: string }[];
+  released?: boolean;
 };

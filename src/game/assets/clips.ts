@@ -5,6 +5,70 @@ const NO_LOOP = new Set<AnimName>([
   "super", "finish1", "finish2", "intro", "throw",
 ]);
 
+/** Filename per clip under /fighters/<id>/. Dedicated files are optional. */
+export const CLIP_FILES: Record<AnimName, string> = {
+  idle: "idle.webp",
+  walk: "walk.webp",
+  walkBack: "walk-back.webp",
+  dash: "dash.webp",
+  jumpStart: "jump-start.webp",
+  jump: "jump.webp",
+  fall: "fall.webp",
+  crouch: "crouch.webp",
+  block: "block.webp",
+  blockLow: "block-low.webp",
+  light: "light.webp",
+  medium: "medium.webp",
+  heavy: "heavy.webp",
+  kickLight: "kick-light.webp",
+  kickHeavy: "kick-heavy.webp",
+  aerial: "aerial.webp",
+  throw: "throw.webp",
+  special1: "special-1.webp",
+  special2: "special-2.webp",
+  special3: "special-3.webp",
+  super: "super.webp",
+  hit: "hit.webp",
+  hitHeavy: "hit-heavy.webp",
+  knockdown: "knockdown.webp",
+  wakeup: "wakeup.webp",
+  victory: "victory.webp",
+  finish1: "finish-1.webp",
+  finish2: "finish-2.webp",
+  intro: "intro.webp",
+  counter: "counter.webp",
+  taunt: "taunt.webp",
+};
+
+export const FALLBACK_OF: Partial<Record<AnimName, AnimName>> = {
+  walkBack: "walk",
+  dash: "walk",
+  jumpStart: "jump",
+  fall: "jump",
+  crouch: "idle",
+  block: "idle",
+  blockLow: "block",
+  intro: "idle",
+  taunt: "idle",
+  victory: "idle",
+  hitHeavy: "hit",
+  knockdown: "hit",
+  wakeup: "hit",
+  medium: "light",
+  heavy: "light",
+  kickLight: "light",
+  kickHeavy: "light",
+  aerial: "light",
+  throw: "light",
+  special1: "light",
+  special2: "light",
+  special3: "light",
+  super: "light",
+  finish1: "super",
+  finish2: "super",
+  counter: "light",
+};
+
 export function clip(name: AnimName, frames: number, fps: number, extra: Partial<AnimClip> = {}): AnimClip {
   return {
     name,
@@ -17,6 +81,17 @@ export function clip(name: AnimName, frames: number, fps: number, extra: Partial
     rows: extra.rows,
     columns: extra.columns,
     src: extra.src,
+    fallback: extra.fallback ?? FALLBACK_OF[name],
+    fallbackSrc: extra.fallbackSrc,
+    scale: extra.scale,
+    offsetX: extra.offsetX,
+    offsetY: extra.offsetY,
+    reverseFrames: extra.reverseFrames ?? (name === "walkBack" ? true : undefined),
+    frameMap: extra.frameMap,
+    sheetFrames: extra.sheetFrames,
+    sheetColumns: extra.sheetColumns,
+    sheetRows: extra.sheetRows,
+    sheetFps: extra.sheetFps,
   };
 }
 
@@ -40,7 +115,10 @@ const GROUPS: Record<string, AnimName[]> = {
   jump: ["jump", "jumpStart", "fall"],
 };
 
-/** Attach real WebP sheets to clips. Missing groups stay as canvas fallback. */
+/**
+ * Attach group WebP sheets as fallbackSrc.
+ * Does not overwrite a dedicated clip.src — that is loaded separately when set.
+ */
 export function bindSheets(clips: Record<string, AnimClip>, sheets: Partial<Record<string, SheetBind>>) {
   for (const [group, names] of Object.entries(GROUPS)) {
     const sh = sheets[group];
@@ -48,11 +126,12 @@ export function bindSheets(clips: Record<string, AnimClip>, sheets: Partial<Reco
     for (const n of names) {
       const c = clips[n];
       if (!c) continue;
-      c.src = sh.src;
-      c.frames = sh.frames;
-      c.columns = sh.columns;
-      c.rows = sh.rows;
-      if (sh.fps) c.fps = sh.fps;
+      c.fallbackSrc = sh.src;
+      c.sheetFrames = sh.frames;
+      c.sheetColumns = sh.columns;
+      c.sheetRows = sh.rows;
+      c.sheetFps = sh.fps;
+      if (!c.fallback) c.fallback = FALLBACK_OF[n];
     }
   }
   return clips;
@@ -67,4 +146,8 @@ export function fighterSheets(id: string): Partial<Record<string, SheetBind>> {
     hurt: { src: `${p}/hurt.webp`, frames: 4, columns: 2, rows: 2, fps: 10 },
     jump: { src: `${p}/jump.webp`, frames: 4, columns: 2, rows: 2, fps: 10 },
   };
+}
+
+export function dedicatedPath(id: string, name: AnimName) {
+  return `/fighters/${id}/${CLIP_FILES[name]}`;
 }
