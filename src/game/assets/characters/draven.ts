@@ -1,9 +1,13 @@
-import { clip, clipMap, bindSheets, fighterSheets } from "../clips";
+import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips, SHIPPED_CLIPS } from "../clips";
+import { DRAVEN_PALETTES } from "../palettes";
 import type { CharacterAssetManifest } from "../types";
 
-export const dravenAssets: CharacterAssetManifest = {
+export const dravenAssets: CharacterAssetManifest = bindAvailableClips({
   id: "draven",
   portrait: "/fighters/draven.webp",
+  skin: "default",
+  availableClips: [...SHIPPED_CLIPS],
+  palettes: DRAVEN_PALETTES,
   effects: [],
   audio: [],
   clips: bindSheets(clipMap([
@@ -39,4 +43,4 @@ export const dravenAssets: CharacterAssetManifest = {
     clip("counter", 6, 12),
     clip("taunt", 6, 6),
   ]), fighterSheets("draven")),
-};
+});

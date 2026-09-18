@@ -1,9 +1,13 @@
-import { clip, clipMap, bindSheets, fighterSheets } from "../clips";
+import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips, SHIPPED_CLIPS } from "../clips";
+import { VESPERA_PALETTES } from "../palettes";
 import type { CharacterAssetManifest } from "../types";
 
-export const vesperaAssets: CharacterAssetManifest = {
+export const vesperaAssets: CharacterAssetManifest = bindAvailableClips({
   id: "vespera",
   portrait: "/fighters/vespera.webp",
+  skin: "default",
+  availableClips: [...SHIPPED_CLIPS],
+  palettes: VESPERA_PALETTES,
   effects: [],
   audio: [],
   clips: bindSheets(clipMap([
@@ -39,4 +43,4 @@ export const vesperaAssets: CharacterAssetManifest = {
     clip("counter", 6, 12),
     clip("taunt", 8, 6),
   ]), fighterSheets("vespera")),
-};
+});

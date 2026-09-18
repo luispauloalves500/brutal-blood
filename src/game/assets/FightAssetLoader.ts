@@ -26,6 +26,7 @@ export function collectFightJobs(req: FightLoadRequest): AssetJob[] {
     for (const clip of Object.values(man.clips)) {
       if (clip.src) add({ key: `${id}:${clip.name}`, url: clip.src, kind: "sheet", critical: false });
       if (clip.fallbackSrc) add({ key: `${id}:fb:${clip.name}`, url: clip.fallbackSrc, kind: "sheet", critical: false });
+      if (clip.maskSrc) add({ key: `${id}:mask:${clip.name}`, url: clip.maskSrc, kind: "sheet", critical: false });
     }
     for (const fx of man.effects) add({ key: `${id}:fx:${fx}`, url: fx, kind: "effect", critical: false });
     for (const a of man.audio) add({ key: `${id}:sfx:${a}`, url: a, kind: "audio", critical: false });
@@ -127,6 +128,7 @@ export async function loadFightAssets(
     for (const clip of Object.values(man.clips)) {
       take(clip.src);
       take(clip.fallbackSrc);
+      take(clip.maskSrc);
     }
     return { id, clips: man.clips, images };
   };

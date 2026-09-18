@@ -52,6 +52,9 @@ export class Fighter {
   airHits = 0;
   wakeupKind: "normal" | "quick" | "delay" = "normal";
   juggleGravity = 1;
+  /** Visual only. Never changes hitboxes or frame data. */
+  paletteId = "default";
+  skin = "default";
 
   constructor({ x, y, facing = 1, data, isAI = false }: { x: number; y: number; facing?: number; data: CharacterDef; isAI?: boolean }) {
     this.data = data;

@@ -1,4 +1,4 @@
-import type { AnimClip, AnimName } from "./types";
+import type { AnimClip, AnimName, CharacterAssetManifest } from "./types";
 
 const NO_LOOP = new Set<AnimName>([
   "jumpStart", "hit", "hitHeavy", "knockdown", "wakeup", "victory",
@@ -92,6 +92,7 @@ export function clip(name: AnimName, frames: number, fps: number, extra: Partial
     sheetColumns: extra.sheetColumns,
     sheetRows: extra.sheetRows,
     sheetFps: extra.sheetFps,
+    maskSrc: extra.maskSrc,
   };
 }
 
@@ -151,3 +152,22 @@ export function fighterSheets(id: string): Partial<Record<string, SheetBind>> {
 export function dedicatedPath(id: string, name: AnimName) {
   return `/fighters/${id}/${CLIP_FILES[name]}`;
 }
+
+/** Clips that currently ship as dedicated WebP for every fighter. */
+export const SHIPPED_CLIPS: AnimName[] = ["idle", "walk", "jump"];
+
+/**
+ * Set clip.src only for names in availableClips.
+ * Never overwrites an explicit src. Never invents files not listed.
+ */
+export function bindAvailableClips(manifest: CharacterAssetManifest): CharacterAssetManifest {
+  const avail = new Set(manifest.availableClips ?? []);
+  for (const c of Object.values(manifest.clips)) {
+    if (!avail.has(c.name)) continue;
+    if (c.src) continue;
+    c.src = dedicatedPath(manifest.id, c.name);
+  }
+  if (!manifest.skin) manifest.skin = "default";
+  return manifest;
+}
+

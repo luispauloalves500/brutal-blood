@@ -1,10 +1,21 @@
-import { clip, clipMap, bindSheets, fighterSheets } from "../clips";
+import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips, SHIPPED_CLIPS } from "../clips";
+import { KHARON_PALETTES } from "../palettes";
 import type { CharacterAssetManifest } from "../types";
 
-/** Carrasco. Dedicated src (light.webp, super.webp…) overrides fallback group sheets. */
-export const kharonAssets: CharacterAssetManifest = {
+/**
+ * Kharon pilot. To enable a dedicated sheet: drop the WebP in
+ * public/fighters/kharon/ and add the clip name to availableClips.
+ * Future names: walkBack dash jumpStart fall crouch block blockLow
+ * light medium heavy kickLight kickHeavy aerial throw
+ * special1 special2 special3 super hit hitHeavy knockdown wakeup
+ * intro taunt victory finish1 finish2 counter
+ */
+export const kharonAssets: CharacterAssetManifest = bindAvailableClips({
   id: "kharon",
   portrait: "/fighters/kharon.webp",
+  skin: "default",
+  availableClips: [...SHIPPED_CLIPS],
+  palettes: KHARON_PALETTES,
   effects: [],
   audio: [],
   clips: bindSheets(clipMap([
@@ -40,4 +51,4 @@ export const kharonAssets: CharacterAssetManifest = {
     clip("counter", 6, 12),
     clip("taunt", 8, 6),
   ]), fighterSheets("kharon")),
-};
+});

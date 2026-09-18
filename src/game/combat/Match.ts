@@ -14,6 +14,8 @@ import type { GraphicsSettings } from "../core/config";
 import { getSave } from "../core/save";
 import { HitStop, computeHitstop, HITSTOP } from "./hitstop";
 import type { FightAssetPack } from "../assets";
+import { getCharacterAssets } from "../assets/manifests";
+import { paletteAt } from "../assets/palettes";
 import { comboScale, stunScale, COMBO_LIMIT, onHitAdv, onBlockAdv } from "./frameData";
 
 export type MatchMode = "arcade" | "versus" | "training" | "survival" | "tournament" | "story";
@@ -130,6 +132,8 @@ export class Match {
     runLabel?: string;
     carry?: { health: number; meter: number; superMeter: number };
     assets?: FightAssetPack | null;
+    p1Palette?: number | string;
+    p2Palette?: number | string;
   }) {
     this.ctx = opts.ctx;
     this.input = opts.input;
@@ -141,9 +145,18 @@ export class Match {
     this.p2 = new Fighter({ x: 960, y: 470, data: opts.p2Data, facing: -1, isAI: opts.mode !== "versus" });
     this.ai = this.p2.isAI ? new FighterAI(this.p2, opts.difficulty) : null;
     if (this.ai && opts.mode === "training") this.ai.mode = this.training.cpu;
+    const man1 = getCharacterAssets(opts.p1Data.id);
+    const man2 = getCharacterAssets(opts.p2Data.id);
+    const mirror = opts.p1Data.id === opts.p2Data.id;
+    const pal1 = resolvePalette(man1.palettes, opts.p1Palette, 0);
+    const pal2 = resolvePalette(man2.palettes, opts.p2Palette, mirror ? 1 : 0);
+    this.p1.paletteId = pal1.id;
+    this.p2.paletteId = pal2.id;
+    this.p1.skin = man1.skin ?? "default";
+    this.p2.skin = man2.skin ?? "default";
     this.sprites = [
-      new SpriteAnimator(opts.p1Data.id, opts.assets?.p1 ?? null),
-      new SpriteAnimator(opts.p2Data.id, opts.assets?.p2 ?? null),
+      new SpriteAnimator(opts.p1Data.id, opts.assets?.p1 ?? null, pal1),
+      new SpriteAnimator(opts.p2Data.id, opts.assets?.p2 ?? null, pal2),
     ];
     this.timer = opts.mode === "training" ? 999 : GAME.ROUND_TIME;
     this.onHUD = opts.onHUD;
@@ -866,3 +879,17 @@ function snap(f: Fighter): FighterSnap {
     roundWins: f.roundWins,
   };
 }
+
+function resolvePalette(
+  list: import("../assets/types").PaletteDef[] | undefined,
+  pick: number | string | undefined,
+  fallbackIndex: number,
+) {
+  if (typeof pick === "string") {
+    const found = list?.find((p) => p.id === pick);
+    if (found) return found;
+  }
+  const idx = typeof pick === "number" ? pick : fallbackIndex;
+  return paletteAt(list, idx);
+}
+

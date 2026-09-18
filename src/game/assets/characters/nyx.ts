@@ -1,9 +1,13 @@
-import { clip, clipMap, bindSheets, fighterSheets } from "../clips";
+import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips, SHIPPED_CLIPS } from "../clips";
+import { NYX_PALETTES } from "../palettes";
 import type { CharacterAssetManifest } from "../types";
 
-export const nyxAssets: CharacterAssetManifest = {
+export const nyxAssets: CharacterAssetManifest = bindAvailableClips({
   id: "nyx",
   portrait: "/fighters/nyx.webp",
+  skin: "default",
+  availableClips: [...SHIPPED_CLIPS],
+  palettes: NYX_PALETTES,
   effects: [],
   audio: [],
   clips: bindSheets(clipMap([
@@ -39,4 +43,4 @@ export const nyxAssets: CharacterAssetManifest = {
     clip("counter", 6, 14),
     clip("taunt", 8, 8),
   ]), fighterSheets("nyx")),
-};
+});

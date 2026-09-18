@@ -121,6 +121,8 @@ export class Game {
       getSpriteAnim: () => this.match.sprites[0]?.lastAnim ?? "",
       getSpriteSrc: () => this.match.sprites[0]?.lastSrc ?? "",
       getSpriteFallback: () => this.match.sprites[0]?.lastFallback ?? false,
+      getSpriteMode: () => this.match.sprites[0]?.lastMode ?? "",
+      getPalette: () => `${this.match.p1.paletteId}/${this.match.p2.paletteId}`,
       killP2: () => { this.match.p2.health = 0; },
       setKeys: (codes: string[]) => this.input.injectCodes(codes),
       setSteer: (v: number) => {
@@ -147,6 +149,8 @@ declare global {
       getSpriteAnim?: () => string;
       getSpriteSrc?: () => string;
       getSpriteFallback?: () => boolean;
+      getSpriteMode?: () => string;
+      getPalette?: () => string;
       killP2?: () => void;
       setKeys: (codes: string[]) => void;
       setSteer?: (v: number) => void;

@@ -3,6 +3,7 @@ import type { SpriteAnimator } from "./SpriteAnimator";
 
 export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, sprites: SpriteAnimator | null, shadows: boolean, debug = false) {
   const anim = mapAnim(f);
+  if (shadows) drawGroundShadow(ctx, f);
   const drawn = sprites?.draw(ctx, anim, f.x, f.y, f.w, f.h, f.facing, {
     time: f.stateTime,
     attack: f.attack,
@@ -23,13 +24,6 @@ export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, sprites: 
   if (f.state === "crouch") ctx.translate(0, 28);
   if (f.state === "hit") ctx.translate(6, 0);
 
-  if (shadows) {
-    ctx.fillStyle = "#00000066";
-    ctx.beginPath();
-    ctx.ellipse(38, 152, 28, 8, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
   if (f.data.id === "nyx") drawNyx(ctx, f);
   else if (f.data.id === "draven") drawDraven(ctx, f);
   else if (f.data.id === "vespera") drawVespera(ctx, f);
@@ -49,8 +43,23 @@ export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, sprites: 
     ctx.globalCompositeOperation = "source-over";
   }
   ctx.restore();
+  } else if (f.hitFlash > 0) {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = `rgba(255,240,230,${Math.min(0.55, f.hitFlash * 4)})`;
+    ctx.fillRect(f.x + 8, f.y + 4, f.w - 16, f.h - 8);
+    ctx.restore();
   }
   if (debug) sprites?.debug(ctx, f.x, f.y, f.w, f.h, f.facing);
+}
+
+function drawGroundShadow(ctx: CanvasRenderingContext2D, f: Fighter) {
+  ctx.save();
+  ctx.fillStyle = "#00000066";
+  ctx.beginPath();
+  ctx.ellipse(f.x + f.w / 2, f.y + f.h - 4, 30, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 function mapAnim(f: Fighter): string {

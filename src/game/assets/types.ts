@@ -61,11 +61,25 @@ export type AnimClip = {
   sheetColumns?: number;
   sheetRows?: number;
   sheetFps?: number;
+  /** Optional mask for palette recolor (clothes/armor). */
+  maskSrc?: string;
+};
+
+export type PaletteDef = {
+  id: string;
+  hue: number;
+  saturate: number;
+  brightness: number;
+  affectsFx?: boolean;
 };
 
 export type CharacterAssetManifest = {
   id: string;
   portrait?: string;
+  /** Visual skin id (art set). Separate from palette. */
+  skin?: string;
+  availableClips?: AnimName[];
+  palettes?: PaletteDef[];
   effects: string[];
   audio: string[];
   clips: Record<string, AnimClip>;

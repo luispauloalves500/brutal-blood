@@ -1,11 +1,14 @@
-import type { AnimClip, CharacterSpritePack } from "../assets/types";
+import type { AnimClip, CharacterSpritePack, PaletteDef } from "../assets/types";
 import type { MoveDef } from "../characters/types";
+import { DEFAULT_PALETTES, isIdentityPalette, paletteFilter } from "../assets/palettes";
 
 export type DrawAnimOpts = {
   time: number;
   attack?: MoveDef | null;
   attackFrame?: number;
 };
+
+export type SourceMode = "DEDICATED" | "FALLBACK";
 
 type Resolved = {
   clip: AnimClip;
@@ -16,7 +19,11 @@ type Resolved = {
   rows: number;
   fps: number;
   fallback: boolean;
+  mask?: CanvasImageSource;
 };
+
+const layoutWarned = new Set<string>();
+const tintCache = new Map<string, HTMLCanvasElement>();
 
 /**
  * Draws preloaded sheets. Combat boxes stay on Fighter.
@@ -27,17 +34,20 @@ export class SpriteAnimator {
   ready = false;
   id: string;
   pack: CharacterSpritePack | null;
+  palette: PaletteDef;
   lastAnim = "idle";
   lastFrame = 0;
   lastSrc = "";
   lastFallback = false;
+  lastMode: SourceMode = "FALLBACK";
   currentAnim = "";
   lastMoveId = "";
   animOrigin = 0;
 
-  constructor(id: string, pack: CharacterSpritePack | null = null) {
+  constructor(id: string, pack: CharacterSpritePack | null = null, palette?: PaletteDef) {
     this.id = id;
     this.pack = pack;
+    this.palette = palette ?? DEFAULT_PALETTES[0]!;
     this.ready = !!pack && pack.images.size > 0;
   }
 
@@ -57,15 +67,15 @@ export class SpriteAnimator {
       if (cur.src) {
         const img = this.pack.images.get(cur.src);
         if (img) {
+          const layout = clampLayout(cur.src, cur.frames, Math.max(1, cur.columns || cur.frames), Math.max(1, cur.rows ?? 1));
           return {
             clip: cur,
             src: cur.src,
             image: img,
-            frames: Math.max(1, cur.frames),
-            columns: Math.max(1, cur.columns || cur.frames),
-            rows: Math.max(1, cur.rows ?? 1),
+            ...layout,
             fps: cur.fps,
-            fallback: cur !== start,
+            fallback: cur !== start || !start.src,
+            mask: cur.maskSrc ? this.pack.images.get(cur.maskSrc) : undefined,
           };
         }
       }
@@ -73,13 +83,14 @@ export class SpriteAnimator {
         const img = this.pack.images.get(cur.fallbackSrc);
         if (img) {
           const frames = Math.max(1, cur.sheetFrames || cur.frames);
+          const cols = Math.max(1, cur.sheetColumns || cur.columns || frames);
+          const rows = Math.max(1, cur.sheetRows ?? cur.rows ?? 1);
+          const layout = clampLayout(cur.fallbackSrc, frames, cols, rows);
           return {
             clip: cur,
             src: cur.fallbackSrc,
             image: img,
-            frames,
-            columns: Math.max(1, cur.sheetColumns || cur.columns || frames),
-            rows: Math.max(1, cur.sheetRows ?? cur.rows ?? 1),
+            ...layout,
             fps: cur.sheetFps || cur.fps,
             fallback: true,
           };
@@ -119,11 +130,13 @@ export class SpriteAnimator {
     this.lastFrame = i;
     this.lastSrc = resolved.src;
     this.lastFallback = resolved.fallback;
+    this.lastMode = resolved.fallback ? "FALLBACK" : "DEDICATED";
 
     const cols = resolved.columns;
     const rows = resolved.rows;
-    const iw = imageWidth(resolved.image);
-    const ih = imageHeight(resolved.image);
+    const sheet = this.sheetForDraw(resolved);
+    const iw = imageWidth(sheet);
+    const ih = imageHeight(sheet);
     if (!iw || !ih) return false;
     const frameW = iw / cols;
     const frameH = ih / rows;
@@ -141,16 +154,25 @@ export class SpriteAnimator {
     ctx.save();
     ctx.translate(x + w / 2 + ox * facing, y + h + oy);
     ctx.scale(facing, 1);
+    if (!resolved.mask && !isIdentityPalette(this.palette)) {
+      ctx.filter = paletteFilter(this.palette);
+    }
     ctx.drawImage(
-      resolved.image,
+      sheet,
       sx, sy, frameW, frameH,
       -px * visScale,
       -py * visScale,
       frameW * visScale,
       frameH * visScale,
     );
+    ctx.filter = "none";
     ctx.restore();
     return true;
+  }
+
+  private sheetForDraw(resolved: Resolved): CanvasImageSource {
+    if (!resolved.mask || isIdentityPalette(this.palette)) return resolved.image;
+    return tintWithMask(resolved.src, this.palette, resolved.image, resolved.mask);
   }
 
   debug(
@@ -161,26 +183,65 @@ export class SpriteAnimator {
     h: number,
     facing: number,
   ) {
-    const clip = this.clip(this.currentAnim || this.lastAnim);
     ctx.save();
     ctx.strokeStyle = "#60a5fa";
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, w, h);
-    const feetX = x + w / 2;
-    const feetY = y + h;
     ctx.fillStyle = "#fbbf24";
     ctx.beginPath();
-    ctx.arc(feetX, feetY, 4, 0, Math.PI * 2);
+    ctx.arc(x + w / 2, y + h, 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#fff8f0";
     ctx.font = "10px monospace";
     const file = this.lastSrc.split("/").pop() ?? this.lastSrc;
-    const fb = this.lastFallback ? ` fallback→${file}` : ` src:${file}`;
-    const piv = clip ? ` pivot ${clip.pivotX.toFixed(2)}/${clip.pivotY.toFixed(2)}` : "";
-    ctx.fillText(`${this.lastAnim} #${this.lastFrame}${fb}`, x, y - 18);
-    ctx.fillText(`fps ${clip?.fps ?? "—"}  f${facing > 0 ? "+" : "-"}${piv}`, x, y - 6);
+    ctx.fillText(`ANIM: ${this.lastAnim} #${this.lastFrame}`, x, y - 30);
+    ctx.fillText(`SOURCE: ${file}`, x, y - 18);
+    ctx.fillText(`MODE: ${this.lastMode}  PAL: ${this.palette.id}  f${facing > 0 ? "+" : "-"}`, x, y - 6);
     ctx.restore();
   }
+}
+
+function clampLayout(src: string, frames: number, columns: number, rows: number) {
+  const cells = Math.max(1, columns * rows);
+  let n = Math.max(1, frames);
+  if (n > cells) {
+    if (!layoutWarned.has(src)) {
+      layoutWarned.add(src);
+      console.warn(`[sprites] ${src}: frames ${n} > ${columns}x${rows} (${cells}); clamping`);
+    }
+    n = cells;
+  }
+  return { frames: n, columns, rows };
+}
+
+function tintWithMask(src: string, pal: PaletteDef, img: CanvasImageSource, mask: CanvasImageSource): HTMLCanvasElement {
+  const key = `${src}::${pal.id}`;
+  const hit = tintCache.get(key);
+  if (hit) return hit;
+  const w = imageWidth(img);
+  const h = imageHeight(img);
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const g = out.getContext("2d");
+  if (!g || !w || !h) return out;
+  g.drawImage(img, 0, 0);
+  const overlay = document.createElement("canvas");
+  overlay.width = w;
+  overlay.height = h;
+  const og = overlay.getContext("2d");
+  if (!og) {
+    tintCache.set(key, out);
+    return out;
+  }
+  og.filter = paletteFilter(pal);
+  og.drawImage(img, 0, 0);
+  og.filter = "none";
+  og.globalCompositeOperation = "destination-in";
+  og.drawImage(mask, 0, 0);
+  g.drawImage(overlay, 0, 0);
+  tintCache.set(key, out);
+  return out;
 }
 
 function pickFrame(clip: AnimClip, n: number, time: number, fps: number, opts: DrawAnimOpts) {
@@ -207,7 +268,6 @@ function isAttackClip(name: string) {
   ].includes(name);
 }
 
-/** Spread sheet frames across startup / active / recovery. Hold last frame in recovery. */
 function attackMappedFrame(n: number, attackFrame: number, startup: number, active: number, recovery: number) {
   const total = Math.max(1, startup + active + recovery);
   const f = Math.max(0, Math.min(total, attackFrame));
