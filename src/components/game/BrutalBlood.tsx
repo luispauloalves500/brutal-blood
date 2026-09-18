@@ -18,6 +18,7 @@ import type { CharacterDef, RosterEntry } from "@/game/characters/types";
 import { Input } from "@/game/input/Input";
 import { AudioManager } from "@/game/audio/AudioManager";
 import { Game } from "@/game/Game";
+import { loadFightAssets, collectFightJobs, releaseFightAssets, type FightAssetPack, type LoadProgress } from "@/game/assets";
 import { commandLabel } from "@/game/combat/commands";
 import { defaultHitstopFrames } from "@/game/combat/hitstop";
 import { moveTags, onBlockAdv, onHitAdv, signed } from "@/game/combat/frameData";
@@ -37,7 +38,8 @@ type Screen =
   | "credits"
   | "characters"
   | "gallery"
-  | "fight";
+  | "fight"
+  | "loading";
 
 type FightResults = {
   won: boolean;
@@ -96,6 +98,20 @@ export function BrutalBlood() {
   const [bracket, setBracket] = useState<TourneyBracket | null>(null);
   const [storyCard, setStoryCard] = useState<{ campaign: StoryCampaign; index: number } | null>(null);
   const [storyCleared, setStoryCleared] = useState<string[]>([]);
+  const [loadProg, setLoadProg] = useState<LoadProgress>({ loaded: 0, total: 1, percent: 0, current: "", failed: [] });
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadHint, setLoadHint] = useState("");
+  const packRef = useRef<FightAssetPack | null>(null);
+  const loadAbort = useRef<AbortController | null>(null);
+  const pendingFight = useRef<{
+    p1: CharacterDef;
+    p2: CharacterDef;
+    difficulty: Difficulty;
+    stageId: string;
+    winsNeeded: number;
+    runLabel: string;
+    carry?: { health: number; meter: number; superMeter: number };
+  } | null>(null);
   const runRef = useRef({
     arcadeIndex: 0,
     continues: ARCADE_CONTINUES,
@@ -238,16 +254,54 @@ export function BrutalBlood() {
     audioRef.current.stopMusic();
     audioRef.current.uiConfirm();
     gameRef.current?.destroy();
+    gameRef.current = null;
     patchSave({ difficulty: diff, lastStage: stage });
     setResults(null);
+    pendingFight.current = {
+      p1, p2: foe, difficulty: diff, stageId: stage, winsNeeded, runLabel: label, carry: override?.carry,
+    };
+    setLoadHint(p1.introLine || foe.introLine || "O sangue espera.");
+    setLoadError(null);
+    setLoadProg({ loaded: 0, total: Math.max(1, collectFightJobs({ p1: p1.id, p2: foe.id, stage }).length), percent: 0, current: "", failed: [] });
+    setScreen("loading");
+    void runLoad();
+  };
+
+  const runLoad = async () => {
+    const pending = pendingFight.current;
+    if (!pending) return;
+    loadAbort.current?.abort();
+    const ac = new AbortController();
+    loadAbort.current = ac;
+    try {
+      const pack = await loadFightAssets(
+        { p1: pending.p1.id, p2: pending.p2.id, stage: pending.stageId },
+        { signal: ac.signal, onProgress: setLoadProg },
+      );
+      if (ac.signal.aborted) return;
+      packRef.current = pack;
+      launchMatch(pending, pack);
+    } catch (e) {
+      if (ac.signal.aborted) return;
+      setLoadError(e instanceof Error ? e.message : "Falha ao carregar");
+    }
+  };
+
+  const launchMatch = (pending: NonNullable<typeof pendingFight.current>, pack: FightAssetPack) => {
+    if (!canvasRef.current || !inputRef.current || !audioRef.current) return;
     const game = new Game({
       canvas: canvasRef.current,
-      p1, p2: foe, mode, difficulty: diff, stageId: stage,
+      p1: pending.p1,
+      p2: pending.p2,
+      mode,
+      difficulty: pending.difficulty,
+      stageId: pending.stageId,
       input: inputRef.current,
       audio: audioRef.current,
-      winsNeeded,
-      runLabel: label,
-      carry: override?.carry,
+      winsNeeded: pending.winsNeeded,
+      runLabel: pending.runLabel,
+      carry: pending.carry,
+      assets: pack,
       onHUD: setHud,
       onMatchEnd: (won) => finishMatch(won),
       onPause: (v) => {
@@ -404,8 +458,13 @@ export function BrutalBlood() {
   };
 
   const quitTo = (s: Screen) => {
+    loadAbort.current?.abort();
     gameRef.current?.destroy();
     gameRef.current = null;
+    if (packRef.current) {
+      releaseFightAssets(packRef.current);
+      packRef.current = null;
+    }
     setHud(null);
     setPaused(false);
     setResults(null);
@@ -441,7 +500,20 @@ export function BrutalBlood() {
 
   return (
     <main className="bb-root relative font-body">
-      {screen !== "fight" && <Backdrop />}
+      {screen !== "fight" && screen !== "loading" && <Backdrop />}
+
+      {screen === "loading" && pendingFight.current && (
+        <LoadingView
+          p1={pendingFight.current.p1}
+          p2={pendingFight.current.p2}
+          stageName={STAGES.find((s) => s.id === pendingFight.current?.stageId)?.name ?? pendingFight.current.stageId}
+          progress={loadProg}
+          hint={loadHint}
+          error={loadError}
+          onRetry={() => { setLoadError(null); void runLoad(); }}
+          onBack={() => quitTo("select")}
+        />
+      )}
 
       {screen === "boot" && (
         <section className="bb-screen items-center justify-center">
@@ -899,6 +971,7 @@ function SettingsView(props: {
             ["hitstop", "Hitstop"],
             ["bloom", "Bloom"],
             ["stageFx", "Efeitos de cenário"],
+            ["debugSprites", "Debug sprites"],
           ] as const).map(([k, lab]) => (
             <label key={k} className="mt-2 flex items-center justify-between text-sm">
               {lab}
@@ -1097,6 +1170,10 @@ function PauseMenu(props: {
               Hitstop
               <input type="checkbox" checked={props.gfx.hitstop !== false} onChange={(e) => props.onGfx({ hitstop: e.target.checked })} />
             </label>
+            <label className="mt-3 flex justify-between text-sm">
+              Debug sprites
+              <input type="checkbox" checked={!!props.gfx.debugSprites} onChange={(e) => props.onGfx({ debugSprites: e.target.checked })} />
+            </label>
           </div>
         )}
       </div>
@@ -1184,6 +1261,52 @@ function TrainingDock(props: {
       </label>
       <button type="button" className="bb-btn mt-2 w-full py-2" onClick={props.onReset}>Reset posição</button>
     </aside>
+  );
+}
+
+function LoadingView(props: {
+  p1: CharacterDef;
+  p2: CharacterDef;
+  stageName: string;
+  progress: LoadProgress;
+  hint: string;
+  error: string | null;
+  onRetry: () => void;
+  onBack: () => void;
+}) {
+  const pct = props.progress.percent;
+  return (
+    <section className="bb-screen items-center justify-center bg-ink px-6">
+      <p className="bb-eyebrow">BRUTAL BLOOD</p>
+      <div className="mt-8 flex w-full max-w-3xl items-center justify-center gap-6">
+        {props.p1.portrait && (
+          <img src={props.p1.portrait} alt="" className="h-40 w-28 object-cover object-top" crossOrigin="anonymous" />
+        )}
+        <div className="text-center">
+          <h2 className="font-display text-4xl tracking-[0.18em]">{props.p1.name}</h2>
+          <div className="my-3 font-display text-xl tracking-[0.4em] text-blood">VS</div>
+          <h2 className="font-display text-4xl tracking-[0.18em]">{props.p2.name}</h2>
+        </div>
+        {props.p2.portrait && (
+          <img src={props.p2.portrait} alt="" className="h-40 w-28 object-cover object-top" style={{ transform: "scaleX(-1)" }} crossOrigin="anonymous" />
+        )}
+      </div>
+      <p className="mt-8 font-display tracking-[0.28em] text-ember">{props.stageName}</p>
+      <div className="mt-6 h-3 w-full max-w-md border border-bone bg-ink p-0.5">
+        <div className="h-full bg-blood" style={{ width: `${pct}%` }} />
+      </div>
+      <p className="mt-3 font-display tracking-[0.2em]">CARREGANDO {pct}%</p>
+      <p className="mt-2 max-w-md text-center text-sm text-mute">{props.hint}</p>
+      {props.progress.current && !props.error && (
+        <p className="mt-1 truncate text-[0.65rem] text-mute">{props.progress.current}</p>
+      )}
+      {props.error && (
+        <div className="mt-6 flex gap-3">
+          <button type="button" className="bb-btn bb-btn-primary" onClick={props.onRetry}>Tentar novamente</button>
+          <button type="button" className="bb-btn" onClick={props.onBack}>Voltar</button>
+        </div>
+      )}
+    </section>
   );
 }
 

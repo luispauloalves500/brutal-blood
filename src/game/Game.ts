@@ -5,6 +5,7 @@ import { Input } from "./input/Input";
 import { AudioManager } from "./audio/AudioManager";
 import { Match, type HudSnap, type MatchMode, type TrainingOpts } from "./combat/Match";
 import type { CharacterDef } from "./characters/types";
+import type { FightAssetPack } from "./assets";
 
 export type GameStart = {
   canvas: HTMLCanvasElement;
@@ -21,6 +22,7 @@ export type GameStart = {
   winsNeeded?: number;
   runLabel?: string;
   carry?: { health: number; meter: number; superMeter: number };
+  assets?: FightAssetPack | null;
 };
 
 export class Game {
@@ -55,6 +57,7 @@ export class Game {
       winsNeeded: opts.winsNeeded,
       runLabel: opts.runLabel,
       carry: opts.carry,
+      assets: opts.assets ?? null,
     });
     this.match.onPause = opts.onPause;
     this.wireControlsTest();

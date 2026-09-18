@@ -13,6 +13,7 @@ import type { CharacterDef, MoveDef } from "../characters/types";
 import type { GraphicsSettings } from "../core/config";
 import { getSave } from "../core/save";
 import { HitStop, computeHitstop, HITSTOP } from "./hitstop";
+import type { FightAssetPack } from "../assets";
 import { comboScale, stunScale, COMBO_LIMIT, onHitAdv, onBlockAdv } from "./frameData";
 
 export type MatchMode = "arcade" | "versus" | "training" | "survival" | "tournament" | "story";
@@ -128,6 +129,7 @@ export class Match {
     winsNeeded?: number;
     runLabel?: string;
     carry?: { health: number; meter: number; superMeter: number };
+    assets?: FightAssetPack | null;
   }) {
     this.ctx = opts.ctx;
     this.input = opts.input;
@@ -139,7 +141,10 @@ export class Match {
     this.p2 = new Fighter({ x: 960, y: 470, data: opts.p2Data, facing: -1, isAI: opts.mode !== "versus" });
     this.ai = this.p2.isAI ? new FighterAI(this.p2, opts.difficulty) : null;
     if (this.ai && opts.mode === "training") this.ai.mode = this.training.cpu;
-    this.sprites = [new SpriteAnimator(opts.p1Data.id), new SpriteAnimator(opts.p2Data.id)];
+    this.sprites = [
+      new SpriteAnimator(opts.p1Data.id, opts.assets?.p1 ?? null),
+      new SpriteAnimator(opts.p2Data.id, opts.assets?.p2 ?? null),
+    ];
     this.timer = opts.mode === "training" ? 999 : GAME.ROUND_TIME;
     this.onHUD = opts.onHUD;
     this.onMatchEnd = opts.onMatchEnd;
@@ -815,8 +820,8 @@ export class Match {
     c.save();
     this.camera.apply(c);
     drawStage(c, this.stage, this.time, this.camera.x, this.gfx.stageFx);
-    drawFighter(c, this.p1, this.sprites[0], this.gfx.shadows);
-    drawFighter(c, this.p2, this.sprites[1], this.gfx.shadows);
+    drawFighter(c, this.p1, this.sprites[0], this.gfx.shadows, this.gfx.debugSprites);
+    drawFighter(c, this.p2, this.sprites[1], this.gfx.shadows, this.gfx.debugSprites);
     if (this.hitStop.frozen && this.hitStop.fx && this.hitStop.victim) {
       c.save();
       c.globalAlpha = 0.22 * this.hitStop.t;

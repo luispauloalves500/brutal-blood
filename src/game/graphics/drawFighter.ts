@@ -1,10 +1,10 @@
 import type { Fighter } from "../combat/Fighter";
 import type { SpriteAnimator } from "./SpriteAnimator";
 
-export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, sprites: SpriteAnimator | null, shadows: boolean) {
+export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, sprites: SpriteAnimator | null, shadows: boolean, debug = false) {
   const anim = mapAnim(f);
-  if (sprites?.draw(ctx, anim, f.x, f.y, f.w, f.h, f.facing, f.stateTime)) return;
-
+  const drawn = sprites?.draw(ctx, anim, f.x, f.y, f.w, f.h, f.facing, f.stateTime);
+  if (!drawn) {
   ctx.save();
   ctx.translate(f.x + f.w / 2, f.y + f.h);
   const squash = f.impactSquash;
@@ -45,11 +45,17 @@ export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, sprites: 
     ctx.globalCompositeOperation = "source-over";
   }
   ctx.restore();
+  }
+  if (debug) sprites?.debug(ctx, f.x, f.y, f.w, f.h, f.facing);
 }
 
 function mapAnim(f: Fighter): string {
   if (f.state === "attack" && f.attack) return f.attack.id;
-  if (f.state === "walk" || f.state === "walkBack") return "walk";
+  if (f.state === "walkBack") return "walkBack";
+  if (f.state === "block" && f.crouching) return "blockLow";
+  if (f.state === "jump") return f.vy > 60 ? "fall" : f.stateTime < 0.08 ? "jumpStart" : "jump";
+  if (f.state === "hit" && f.lastHitWasCounter) return "hitHeavy";
+  if (f.state === "finish") return "finish1";
   return f.state;
 }
 

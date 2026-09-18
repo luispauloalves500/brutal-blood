@@ -1,6 +1,6 @@
 /** Single global config. Never redeclare DEBUG or these constants in other files. */
 export const GAME = {
-  VERSION: "0.7",
+  VERSION: "0.8",
   WIDTH: 1280,
   HEIGHT: 720,
   FPS: 60,
@@ -24,6 +24,7 @@ export const DEBUG = {
   enabled: false,
   hitboxes: false,
   frameData: false,
+  sprites: false,
 };
 
 export type Difficulty =
@@ -60,6 +61,7 @@ export type GraphicsSettings = {
   hitstop: boolean;
   bloom: boolean;
   stageFx: boolean;
+  debugSprites: boolean;
 };
 
 export type AudioSettings = {
@@ -85,6 +87,7 @@ export const DEFAULT_GRAPHICS: GraphicsSettings = {
   hitstop: true,
   bloom: true,
   stageFx: true,
+  debugSprites: false,
 };
 
 export const QUALITY_PRESETS: Record<QualityPreset, Partial<GraphicsSettings>> = {

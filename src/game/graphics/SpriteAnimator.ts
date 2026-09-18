@@ -1,43 +1,26 @@
+import type { AnimClip, CharacterSpritePack } from "../assets/types";
+
 /**
- * SpriteAnimator — ready for real WebP sheets per character.
- * Only loads paths listed in SPRITE_MANIFEST to avoid 404s.
- * Horizontal flip is done with scale, never duplicated art.
+ * Draws preloaded sheets. Combat boxes stay on Fighter.
+ * Facing left uses ctx.scale(-1,1) — never duplicate art.
+ * Missing clip/src → draw() returns false (placeholder).
  */
-export const SPRITE_MANIFEST: Record<string, Partial<Record<string, string>>> = {
-  // Populate when real sheets land, e.g. kharon: { idle: "/fighters/kharon/idle.webp" }
-};
-
-type Anim = { img: HTMLImageElement; frames: number; fps: number; fw: number; fh: number };
-
 export class SpriteAnimator {
-  private anims = new Map<string, Anim>();
   ready = false;
   id: string;
+  pack: CharacterSpritePack | null;
+  lastAnim = "idle";
+  lastFrame = 0;
 
-  constructor(id: string) {
+  constructor(id: string, pack: CharacterSpritePack | null = null) {
     this.id = id;
-    const manifest = SPRITE_MANIFEST[id];
-    if (!manifest) return;
-    const loads: Promise<void>[] = [];
-    for (const [name, src] of Object.entries(manifest)) {
-      if (!src) continue;
-      loads.push(
-        new Promise((res) => {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => {
-            const frames = Math.max(1, Math.round(img.width / img.height));
-            this.anims.set(name, { img, frames, fps: 8, fw: img.width / frames, fh: img.height });
-            res();
-          };
-          img.onerror = () => res();
-          img.src = src;
-        }),
-      );
-    }
-    void Promise.all(loads).then(() => {
-      this.ready = this.anims.size > 0;
-    });
+    this.pack = pack;
+    this.ready = !!pack && pack.images.size > 0 && Object.values(pack.clips).some((c) => c.src && pack.images.has(c.src));
+  }
+
+  clip(name: string): AnimClip | undefined {
+    if (!this.pack) return undefined;
+    return this.pack.clips[name] ?? this.pack.clips.idle;
   }
 
   draw(
@@ -50,14 +33,70 @@ export class SpriteAnimator {
     facing: number,
     time: number,
   ): boolean {
-    const a = this.anims.get(anim) ?? this.anims.get("idle");
-    if (!a) return false;
-    const i = Math.floor(time * a.fps) % a.frames;
+    const clip = this.clip(anim);
+    if (!clip?.src || !this.pack) return false;
+    const img = this.pack.images.get(clip.src);
+    if (!img) return false;
+
+    const iw = "width" in img ? Number(img.width) : 0;
+    const ih = "height" in img ? Number(img.height) : 0;
+    if (!iw || !ih) return false;
+
+    const cols = Math.max(1, clip.columns || clip.frames);
+    const rows = clip.row != null ? Math.max(clip.row + 1, 1) : 1;
+    const frameW = iw / cols;
+    const frameH = ih / rows;
+    const n = Math.max(1, clip.frames);
+    const i = clip.loop
+      ? Math.floor(time * clip.fps) % n
+      : Math.min(n - 1, Math.floor(time * clip.fps));
+    this.lastAnim = anim;
+    this.lastFrame = i;
+    const col = i % cols;
+    const row = clip.row ?? Math.floor(i / cols);
+    const sx = col * frameW;
+    const sy = row * frameH;
+
+    const px = clip.pivotX * frameW;
+    const py = clip.pivotY * frameH;
+    const scale = h / frameH;
+
     ctx.save();
     ctx.translate(x + w / 2, y + h);
     ctx.scale(facing, 1);
-    ctx.drawImage(a.img, i * a.fw, 0, a.fw, a.fh, -w / 2, -h, w, h);
+    ctx.drawImage(
+      img,
+      sx, sy, frameW, frameH,
+      -px * scale,
+      -py * scale,
+      frameW * scale,
+      frameH * scale,
+    );
     ctx.restore();
     return true;
+  }
+
+  debug(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    facing: number,
+  ) {
+    ctx.save();
+    ctx.strokeStyle = "#60a5fa";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, w, h);
+    const feetX = x + w / 2;
+    const feetY = y + h;
+    ctx.fillStyle = "#fbbf24";
+    ctx.beginPath();
+    ctx.arc(feetX, feetY, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff8f0";
+    ctx.font = "10px monospace";
+    ctx.fillText(`${this.lastAnim} #${this.lastFrame} f${facing > 0 ? "+" : "-"}`, x, y - 6);
+    ctx.restore();
   }
 }

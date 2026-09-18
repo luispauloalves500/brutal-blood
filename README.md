@@ -2,7 +2,7 @@
 
 Jogo de luta 2D em HTML5 Canvas + TypeScript.
 
-Versão **0.7** — Kharon, Nyx, Draven e Vespera.
+Versão **0.8** — Kharon, Nyx, Draven e Vespera. Loading real por luta.
 
 ## Modos
 
@@ -70,4 +70,4 @@ O combate roda 100% no cliente (`localStorage`). Auth/Postgres/Better Auth na pa
 
 ## Status
 
-v0.7: combate polido, Treino avançado, Vespera jogável. Sem campanha Story da Vespera ainda. Boss dedicado, Gorr/Shai/Brakk/Mora, multiplayer e NFT ficam para depois.
+v0.8: loading real de assets por luta (retrato + sheets quando existirem), SpriteAnimator com pivot/espelhamento, fallback canvas. Sheets definitivos ainda não estão no repo — a luta usa o placeholder atual até o WebP chegar.
