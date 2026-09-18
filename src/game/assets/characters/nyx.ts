@@ -1,4 +1,4 @@
-import { clip, clipMap } from "../clips";
+import { clip, clipMap, bindSheets, fighterSheets } from "../clips";
 import type { CharacterAssetManifest } from "../types";
 
 export const nyxAssets: CharacterAssetManifest = {
@@ -6,7 +6,7 @@ export const nyxAssets: CharacterAssetManifest = {
   portrait: "/fighters/nyx.webp",
   effects: [],
   audio: [],
-  clips: clipMap([
+  clips: bindSheets(clipMap([
     clip("idle", 8, 10),
     clip("walk", 8, 12),
     clip("walkBack", 8, 10),
@@ -38,5 +38,5 @@ export const nyxAssets: CharacterAssetManifest = {
     clip("intro", 8, 10),
     clip("counter", 6, 14),
     clip("taunt", 8, 8),
-  ]),
+  ]), fighterSheets("nyx")),
 };

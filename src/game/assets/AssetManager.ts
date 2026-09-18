@@ -98,36 +98,21 @@ export class AssetManager {
   }
 
   private async fetchDecode(url: string, signal?: AbortSignal): Promise<CanvasImageSource> {
-    const res = await fetch(url, { signal, cache: "force-cache" });
-    if (!res.ok) throw new Error(`${res.status} ${url}`);
-    const blob = await res.blob();
-    if (typeof createImageBitmap === "function") {
-      try {
-        return await createImageBitmap(blob);
-      } catch {
-        /* fall through to HTMLImageElement */
-      }
-    }
-    return await blobToImage(blob, signal);
+    const img = await loadHtmlImage(url, signal);
+    return img;
   }
 }
 
-function blobToImage(blob: Blob, signal?: AbortSignal): Promise<HTMLImageElement> {
+export const assets = new AssetManager();
+
+function loadHtmlImage(url: string, signal?: AbortSignal): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const url = URL.createObjectURL(blob);
-    const done = (ok: boolean) => {
-      URL.revokeObjectURL(url);
-      img.onload = null;
-      img.onerror = null;
-      if (ok) resolve(img);
-      else reject(new Error("decode failed"));
-    };
-    img.onload = () => done(true);
-    img.onerror = () => done(false);
-    signal?.addEventListener("abort", () => done(false), { once: true });
+    img.crossOrigin = "anonymous";
+    const fail = () => reject(new Error(`image ${url}`));
+    img.onload = () => resolve(img);
+    img.onerror = fail;
+    signal?.addEventListener("abort", fail, { once: true });
     img.src = url;
   });
 }
-
-export const assets = new AssetManager();

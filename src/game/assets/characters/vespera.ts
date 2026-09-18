@@ -1,4 +1,4 @@
-import { clip, clipMap } from "../clips";
+import { clip, clipMap, bindSheets, fighterSheets } from "../clips";
 import type { CharacterAssetManifest } from "../types";
 
 export const vesperaAssets: CharacterAssetManifest = {
@@ -6,7 +6,7 @@ export const vesperaAssets: CharacterAssetManifest = {
   portrait: "/fighters/vespera.webp",
   effects: [],
   audio: [],
-  clips: clipMap([
+  clips: bindSheets(clipMap([
     clip("idle", 8, 8),
     clip("walk", 8, 9),
     clip("walkBack", 8, 8),
@@ -38,5 +38,5 @@ export const vesperaAssets: CharacterAssetManifest = {
     clip("intro", 8, 8),
     clip("counter", 6, 12),
     clip("taunt", 8, 6),
-  ]),
+  ]), fighterSheets("vespera")),
 };

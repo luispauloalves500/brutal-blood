@@ -43,6 +43,7 @@ export type AnimClip = {
   pivotX: number;
   pivotY: number;
   row?: number;
+  rows?: number;
   columns?: number;
 };
 

@@ -1,4 +1,4 @@
-import { clip, clipMap } from "../clips";
+import { clip, clipMap, bindSheets, fighterSheets } from "../clips";
 import type { CharacterAssetManifest } from "../types";
 
 export const dravenAssets: CharacterAssetManifest = {
@@ -6,7 +6,7 @@ export const dravenAssets: CharacterAssetManifest = {
   portrait: "/fighters/draven.webp",
   effects: [],
   audio: [],
-  clips: clipMap([
+  clips: bindSheets(clipMap([
     clip("idle", 6, 8),
     clip("walk", 8, 10),
     clip("walkBack", 8, 8),
@@ -38,5 +38,5 @@ export const dravenAssets: CharacterAssetManifest = {
     clip("intro", 6, 8),
     clip("counter", 6, 12),
     clip("taunt", 6, 6),
-  ]),
+  ]), fighterSheets("draven")),
 };

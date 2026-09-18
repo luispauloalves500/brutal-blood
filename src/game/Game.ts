@@ -116,6 +116,8 @@ export class Game {
       getHitstop: () => this.match.hitStop.remaining,
       getLastHitstop: () => this.match.hitStop.lastFrames,
       getHitstopKind: () => this.match.hitStop.kind,
+      getSpriteReady: () => this.match.sprites[0]?.ready ?? false,
+      getSpriteCount: () => this.match.sprites[0]?.pack?.images.size ?? 0,
       killP2: () => { this.match.p2.health = 0; },
       setKeys: (codes: string[]) => this.input.injectCodes(codes),
       setSteer: (v: number) => {
@@ -137,6 +139,8 @@ declare global {
       getHitstop?: () => number;
       getLastHitstop?: () => number;
       getHitstopKind?: () => string;
+      getSpriteReady?: () => boolean;
+      getSpriteCount?: () => number;
       killP2?: () => void;
       setKeys: (codes: string[]) => void;
       setSteer?: (v: number) => void;

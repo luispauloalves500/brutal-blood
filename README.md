@@ -70,4 +70,4 @@ O combate roda 100% no cliente (`localStorage`). Auth/Postgres/Better Auth na pa
 
 ## Status
 
-v0.8: loading real de assets por luta (retrato + sheets quando existirem), SpriteAnimator com pivot/espelhamento, fallback canvas. Sheets definitivos ainda não estão no repo — a luta usa o placeholder atual até o WebP chegar.
+Cada lutador tem sheets WebP em `public/fighters/<id>/` (idle, walk, attack, hurt, jump). Animações extras reusam o sheet mais próximo até existirem clips dedicados.

@@ -38,12 +38,12 @@ export class SpriteAnimator {
     const img = this.pack.images.get(clip.src);
     if (!img) return false;
 
-    const iw = "width" in img ? Number(img.width) : 0;
-    const ih = "height" in img ? Number(img.height) : 0;
+    const iw = imageWidth(img);
+    const ih = imageHeight(img);
     if (!iw || !ih) return false;
 
     const cols = Math.max(1, clip.columns || clip.frames);
-    const rows = clip.row != null ? Math.max(clip.row + 1, 1) : 1;
+    const rows = Math.max(1, clip.rows ?? 1);
     const frameW = iw / cols;
     const frameH = ih / rows;
     const n = Math.max(1, clip.frames);
@@ -53,7 +53,7 @@ export class SpriteAnimator {
     this.lastAnim = anim;
     this.lastFrame = i;
     const col = i % cols;
-    const row = clip.row ?? Math.floor(i / cols);
+    const row = Math.min(rows - 1, clip.row ?? Math.floor(i / cols));
     const sx = col * frameW;
     const sy = row * frameH;
 
@@ -99,4 +99,18 @@ export class SpriteAnimator {
     ctx.fillText(`${this.lastAnim} #${this.lastFrame} f${facing > 0 ? "+" : "-"}`, x, y - 6);
     ctx.restore();
   }
+}
+
+function imageWidth(img: CanvasImageSource) {
+  if (img instanceof HTMLImageElement) return img.naturalWidth || img.width;
+  if (typeof ImageBitmap !== "undefined" && img instanceof ImageBitmap) return img.width;
+  if ("width" in img) return Number((img as { width: number }).width);
+  return 0;
+}
+
+function imageHeight(img: CanvasImageSource) {
+  if (img instanceof HTMLImageElement) return img.naturalHeight || img.height;
+  if (typeof ImageBitmap !== "undefined" && img instanceof ImageBitmap) return img.height;
+  if ("height" in img) return Number((img as { height: number }).height);
+  return 0;
 }

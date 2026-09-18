@@ -1,4 +1,4 @@
-import { clip, clipMap } from "../clips";
+import { clip, clipMap, bindSheets, fighterSheets } from "../clips";
 import type { CharacterAssetManifest } from "../types";
 
 /** Carrasco pesado. Sheets under /fighters/kharon/*.webp when art lands. */
@@ -7,7 +7,7 @@ export const kharonAssets: CharacterAssetManifest = {
   portrait: "/fighters/kharon.webp",
   effects: [],
   audio: [],
-  clips: clipMap([
+  clips: bindSheets(clipMap([
     clip("idle", 8, 8),
     clip("walk", 8, 10),
     clip("walkBack", 8, 8),
@@ -39,5 +39,5 @@ export const kharonAssets: CharacterAssetManifest = {
     clip("intro", 8, 8),
     clip("counter", 6, 12),
     clip("taunt", 8, 6),
-  ]),
+  ]), fighterSheets("kharon")),
 };
