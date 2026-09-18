@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #09070b;
+  --color-ink-2: #100c12;
+  --color-panel: #161018;
+  --color-panel-2: #1c151c;
+  --color-bone: #f4ece4;
+  --color-mute: #9a8e96;
+  --color-line: #3a3038;
+  --color-blood: #c9202b;
+  --color-blood-2: #8b1118;
+  --color-ember: #d4563a;
+  --color-hp: #ef3d42;
+  --color-meter: #5a9cff;
+  --color-super: #e8c9a4;
+  --font-display: "Oswald", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+}
+
+@layer base {
+  html, body, #app {
+    margin: 0;
+    min-height: 100%;
+    background: var(--color-ink);
+    color: var(--color-bone);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  * { box-sizing: border-box; }
+}
+
+.bb-root {
+  min-height: 100dvh;
+  background:
+    radial-gradient(ellipse at 50% 0%, #3a121866, transparent 50%),
+    #09070b;
+  color: var(--color-bone);
+  overflow: hidden;
+  touch-action: none;
+}
+
+.bb-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bb-panel {
+  background: color-mix(in oklab, var(--color-panel) 92%, transparent);
+  border: 1px solid var(--color-line);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+
+.bb-btn {
+  font-family: var(--font-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  border: 1px solid var(--color-line);
+  background: var(--color-panel-2);
+  color: var(--color-bone);
+  padding: 0.85rem 1.1rem;
+  min-height: 44px;
+  transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1), border-color 150ms ease, background 150ms ease;
+}
+.bb-btn:hover:not(:disabled) {
+  border-color: var(--color-blood);
+  background: #24141a;
+  transform: translateY(-1px);
+}
+.bb-btn:active:not(:disabled) { transform: scale(0.98); }
+.bb-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.bb-btn-primary {
+  background: var(--color-blood);
+  border-color: #e24a52;
+  color: var(--color-bone);
+}
+.bb-btn-primary:hover:not(:disabled) {
+  background: #dc2c38;
+}
+
+.bb-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.86;
+  text-wrap: balance;
+}
+.bb-eyebrow {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.38em;
+  color: #d07076;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.health-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #7a1016, #ef3d42, #f0c07a);
+}
+.meter-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #2a4a9a, #6ab4ff);
+}
+.super-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #6a3a20, #e8c9a4);
+}
+
+@keyframes ember-rise {
+  from { transform: translateY(0) scale(1); opacity: 0.7; }
+  to { transform: translateY(-110px) scale(0.4); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-btn, .ember { transition: none; animation: none !important; }
+}
