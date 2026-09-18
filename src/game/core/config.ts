@@ -1,6 +1,6 @@
 /** Single global config. Never redeclare DEBUG or these constants in other files. */
 export const GAME = {
-  VERSION: "0.5",
+  VERSION: "0.6",
   WIDTH: 1280,
   HEIGHT: 720,
   FPS: 60,
@@ -14,7 +14,7 @@ export const GAME = {
   COMBO_DROP: 0.35,
   INPUT_BUFFER: 0.14,
   SAVE_KEY: "brutal-blood-save",
-  SAVE_VERSION: 4,
+  SAVE_VERSION: 5,
 } as const;
 
 export const DEBUG = {

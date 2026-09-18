@@ -34,6 +34,7 @@ export type SaveData = {
   survivalBest: number;
   arcadeCleared: boolean;
   tournamentWon: boolean;
+  storyCleared: string[];
 };
 
 function emptyStats(): Stats {
@@ -54,6 +55,7 @@ export function defaultSave(): SaveData {
     survivalBest: 0,
     arcadeCleared: false,
     tournamentWon: false,
+    storyCleared: [],
   };
 }
 

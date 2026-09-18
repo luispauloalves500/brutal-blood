@@ -2,7 +2,7 @@
 
 Jogo de luta 2D em HTML5 Canvas + TypeScript.
 
-Versão **0.5** — Kharon, Nyx e Draven. Arcade, Versus, Treino, Survival e Torneio.
+Versão **0.6** — Kharon, Nyx e Draven. Arcade, Versus, Treino, Survival, Torneio e História.
 
 ## Modos
 
@@ -11,7 +11,7 @@ Versão **0.5** — Kharon, Nyx e Draven. Arcade, Versus, Treino, Survival e Tor
 - **Treino** — hitboxes, frame data, hitstop
 - **Survival** — ondas infinitas, recorde salvo
 - **Torneio** — chave de 4, semi e final
-- **História** — em breve
+- **História** — campanha de 4 capítulos por lutador
 
 ## Lutadores
 
@@ -61,4 +61,4 @@ npm run build
 
 ## Status
 
-Fase 1–3 fechadas. Fase 4 em curso: Draven e Torneio jogáveis. História e o resto do elenco (Vespera, Gorr, Shai, Brakk, Mora) ainda bloqueados.
+Fase 1–3 fechadas. Fase 4 em curso: Draven, Torneio e História jogáveis. O resto do elenco (Vespera, Gorr, Shai, Brakk, Mora) ainda bloqueado.

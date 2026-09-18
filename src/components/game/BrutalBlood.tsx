@@ -23,6 +23,7 @@ import { defaultHitstopFrames } from "@/game/combat/hitstop";
 import type { HudSnap, MatchMode, TrainingOpts } from "@/game/combat/Match";
 import { STAGES } from "@/game/graphics/stages";
 import { ARCADE_CONTINUES, ARCADE_LADDER, arcadeOpponent, buildBracket, healCarry, survivalDifficulty, survivalOpponent, survivalStage, type TourneyBracket } from "@/game/modes/runs";
+import { getStory, storyOpponent, type StoryCampaign } from "@/game/modes/story";
 import { HUD } from "./HUD";
 import { TouchControls } from "./TouchControls";
 
@@ -45,11 +46,11 @@ type FightResults = {
   health: number;
   meter: number;
   superMeter: number;
-  next?: "arcade" | "survival" | "continue" | "tournament" | null;
+  next?: "arcade" | "survival" | "continue" | "tournament" | "story" | null;
 };
 
-const MENU: { id: string; label: string; action: Screen | "arcade" | "versus" | "training" | "survival" | "tournament" | "soon"; soon?: boolean; icon: typeof Swords }[] = [
-  { id: "story", label: "História", action: "soon", soon: true, icon: BookOpen },
+const MENU: { id: string; label: string; action: Screen | "arcade" | "versus" | "training" | "survival" | "tournament" | "story" | "soon"; soon?: boolean; icon: typeof Swords }[] = [
+  { id: "story", label: "História", action: "story", icon: BookOpen },
   { id: "arcade", label: "Arcade", action: "arcade", icon: Swords },
   { id: "versus", label: "Versus", action: "versus", icon: Users },
   { id: "training", label: "Treino", action: "training", icon: Swords },
@@ -92,10 +93,13 @@ export function BrutalBlood() {
   const [survivalBest, setSurvivalBest] = useState(0);
   const [results, setResults] = useState<FightResults | null>(null);
   const [bracket, setBracket] = useState<TourneyBracket | null>(null);
+  const [storyCard, setStoryCard] = useState<{ campaign: StoryCampaign; index: number } | null>(null);
+  const [storyCleared, setStoryCleared] = useState<string[]>([]);
   const runRef = useRef({
     arcadeIndex: 0,
     continues: ARCADE_CONTINUES,
     wave: 1,
+    storyIndex: 0,
     tourney: null as { round: "semi" | "final"; bracket: TourneyBracket } | null,
   });
 
@@ -108,6 +112,7 @@ export function BrutalBlood() {
     setStageId(saved.lastStage);
     setRumble(saved.rumble);
     setSurvivalBest(saved.survivalBest);
+    setStoryCleared(saved.storyCleared ?? []);
     const input = new Input(structuredClone(saved.bindings));
     input.rumble = saved.rumble;
     input.attach();
@@ -149,8 +154,9 @@ export function BrutalBlood() {
     setArcadeIndex(0);
     setArcadeContinues(ARCADE_CONTINUES);
     setWave(1);
-    runRef.current = { arcadeIndex: 0, continues: ARCADE_CONTINUES, wave: 1, tourney: null };
+    runRef.current = { arcadeIndex: 0, continues: ARCADE_CONTINUES, wave: 1, storyIndex: 0, tourney: null };
     setBracket(null);
+    setStoryCard(null);
     setResults(null);
     setScreen("select");
   };
@@ -174,6 +180,11 @@ export function BrutalBlood() {
         setBracket(b);
         runRef.current.tourney = { round: "semi", bracket: b };
         setP2(b.semiOpp);
+      }
+      if (mode === "story") {
+        runRef.current.storyIndex = 0;
+        const beat = getStory(entry.id).beats[0];
+        setP2(beat ? storyOpponent(entry, beat.opponentId) : other);
       }
     }
   };
@@ -208,7 +219,16 @@ export function BrutalBlood() {
       diff = t?.round === "final" ? "brutal" : "hard";
       stage = t?.round === "final" ? "fortress" : "cathedral";
       label = t?.round === "final" ? "FINAL" : "SEMI";
+    } else if (mode === "story") {
+      const camp = getStory(p1.id);
+      const i = runRef.current.storyIndex;
+      const beat = camp.beats[i] ?? camp.beats[0];
+      foe = storyOpponent(p1, beat.opponentId);
+      diff = beat.difficulty;
+      stage = beat.stageId;
+      label = `${beat.chapter}  ${i + 1}/${camp.beats.length}`;
     }
+    setStoryCard(null);
     if (!foe) return;
     setP2(foe);
     setDifficulty(diff);
@@ -311,6 +331,22 @@ export function BrutalBlood() {
       }
       return;
     }
+    if (mode === "story") {
+      const camp = getStory(p1.id);
+      const i = runRef.current.storyIndex;
+      const beat = camp.beats[i];
+      if (won && beat && i < camp.beats.length - 1) {
+        setResults({ won: true, title: beat.title, subtitle: beat.winLine, ...snap, next: "story" });
+      } else if (won) {
+        const cleared = Array.from(new Set([...storyCleared, p1.id]));
+        setStoryCleared(cleared);
+        patchSave({ storyCleared: cleared });
+        setResults({ won: true, title: camp.title, subtitle: camp.ending, ...snap, next: null });
+      } else {
+        setResults({ won: false, title: "FIM", subtitle: "A história acaba aqui. O sangue não reescreve o capítulo.", ...snap, next: null });
+      }
+      return;
+    }
     setResults({
       won,
       title: won ? "VITÓRIA" : "DERROTA",
@@ -349,9 +385,17 @@ export function BrutalBlood() {
       });
       return;
     }
-    if (results.next === "tournament") {
-      if (runRef.current.tourney) runRef.current.tourney.round = "final";
-      startFight();
+    if (results.next === "story" && p1) {
+      const next = runRef.current.storyIndex + 1;
+      runRef.current.storyIndex = next;
+      gameRef.current?.destroy();
+      gameRef.current = null;
+      setHud(null);
+      setResults(null);
+      setPaused(false);
+      const camp = getStory(p1.id);
+      setStoryCard({ campaign: camp, index: next });
+      audioRef.current?.startMusic();
       return;
     }
     quitTo("menu");
@@ -363,6 +407,7 @@ export function BrutalBlood() {
     setHud(null);
     setPaused(false);
     setResults(null);
+    setStoryCard(null);
     setScreen(s);
     audioRef.current?.startMusic();
   };
@@ -409,7 +454,7 @@ export function BrutalBlood() {
         <MenuView
           onAction={(a, label) => {
             if (a === "soon") { setSoon(label); audioRef.current?.uiBack(); return; }
-            if (a === "arcade" || a === "versus" || a === "training" || a === "survival" || a === "tournament") openMode(a);
+            if (a === "arcade" || a === "versus" || a === "training" || a === "survival" || a === "tournament" || a === "story") openMode(a);
             else nav(a);
           }}
         />
@@ -428,9 +473,15 @@ export function BrutalBlood() {
           onSlot={setPickSlot}
           onDiff={(d) => { setDifficulty(d); patchSave({ difficulty: d }); }}
           onStage={setStageId}
-          onStart={startFight}
+          onStart={mode === "story" ? () => {
+            if (!p1) return;
+            const camp = getStory(p1.id);
+            setStoryCard({ campaign: camp, index: runRef.current.storyIndex });
+            audioRef.current?.uiConfirm();
+          } : startFight}
           survivalBest={survivalBest}
           bracket={bracket}
+          storyCleared={storyCleared}
         />
       )}
 
@@ -476,7 +527,7 @@ export function BrutalBlood() {
         <SimpleBack title="Créditos" onBack={() => nav("menu")}>
           <p className="max-w-md text-pretty text-mute">
             BRUTAL BLOOD v{GAME.VERSION}. Motor de luta modular com Kharon, Nyx e Draven.
-            Combos exclusivos, especiais, Super Move, Blood Finish, Arcade, Survival e Torneio.
+            Combos exclusivos, especiais, Super Move, Blood Finish, Arcade, Survival, Torneio e História.
           </p>
         </SimpleBack>
       )}
@@ -564,6 +615,19 @@ export function BrutalBlood() {
         </div>
       )}
 
+      {storyCard && p1 && (
+        <StoryCard
+          campaign={storyCard.campaign}
+          index={storyCard.index}
+          fighter={p1}
+          onFight={startFight}
+          onBack={() => {
+            setStoryCard(null);
+            if (screen === "fight") quitTo("menu");
+          }}
+        />
+      )}
+
       {toast && (
         <Toast text={toast} onDone={() => setToast(null)} />
       )}
@@ -631,7 +695,7 @@ function MenuView({ onAction }: { onAction: (a: (typeof MENU)[number]["action"],
             );
           })}
         </div>
-        <p className="mt-6 text-center text-[0.7rem] tracking-[0.18em] text-mute">v{GAME.VERSION} — Draven / Torneio</p>
+        <p className="mt-6 text-center text-[0.7rem] tracking-[0.18em] text-mute">v{GAME.VERSION} — História</p>
       </div>
     </section>
   );
@@ -646,6 +710,7 @@ function SelectView(props: {
   stageId: string;
   survivalBest: number;
   bracket: TourneyBracket | null;
+  storyCleared: string[];
   onBack: () => void;
   onPick: (e: RosterEntry) => void;
   onSlot: (s: 1 | 2) => void;
@@ -665,6 +730,7 @@ function SelectView(props: {
           {props.mode === "arcade" && <p className="mt-1 text-xs tracking-widest text-ember">5 lutas até o chefe. 1 continue.</p>}
           {props.mode === "survival" && <p className="mt-1 text-xs tracking-widest text-ember">Ondas infinitas. Recorde: {props.survivalBest}</p>}
           {props.mode === "tournament" && <p className="mt-1 text-xs tracking-widest text-ember">Chave de 4. Semi e final.</p>}
+          {props.mode === "story" && <p className="mt-1 text-xs tracking-widest text-ember">Campanha de 4 capítulos. Sem continue.</p>}
         </div>
       </header>
       <div className="mx-auto mt-6 grid w-full max-w-6xl gap-6 lg:grid-cols-[1fr_18rem]">
@@ -682,7 +748,9 @@ function SelectView(props: {
                   <div className="absolute inset-0 bg-panel-2" />
                 )}
                 <div className="relative">
-                  <div className="text-[0.6rem] tracking-widest text-ember">{locked ? "BLOQUEADO" : f.title}</div>
+                  <div className="text-[0.6rem] tracking-widest text-ember">
+                    {locked ? "BLOQUEADO" : props.mode === "story" && props.storyCleared.includes(f.id) ? "COMPLETO" : f.title}
+                  </div>
                   <h3 className="font-display text-xl tracking-widest">{f.name}</h3>
                 </div>
               </button>
@@ -710,7 +778,7 @@ function SelectView(props: {
           ) : (
             <p className="mt-6 text-sm text-mute">Selecione um lutador</p>
           )}
-          {props.mode !== "versus" && props.mode !== "arcade" && props.mode !== "survival" && props.mode !== "tournament" && (
+          {props.mode !== "versus" && props.mode !== "arcade" && props.mode !== "survival" && props.mode !== "tournament" && props.mode !== "story" && (
             <label className="mt-4 block text-xs tracking-widest text-mute">
               Dificuldade
               <select className="mt-1 w-full border border-line bg-ink p-2 text-bone" value={props.difficulty}
@@ -735,7 +803,9 @@ function SelectView(props: {
                 ? "As arenas e a dificuldade avançam a cada rua."
                 : props.mode === "tournament"
                   ? "Semi na Catedral. Final na Fortaleza. O outro lado da chave é resolvido fora do ringue."
-                  : "Cada onda muda de arena. A vida e a energia carregam; um recuo de 18% de vida entre ondas."}
+                  : props.mode === "story"
+                    ? (props.p1 ? `${getStory(props.p1.id).title} — ${getStory(props.p1.id).blurb}` : "Cada lutador tem uma campanha própria de quatro capítulos.")
+                    : "Cada onda muda de arena. A vida e a energia carregam; um recuo de 18% de vida entre ondas."}
             </p>
           )}
           {props.mode === "tournament" && props.bracket && (
@@ -917,6 +987,7 @@ function ResultsOverlay(props: {
     r.next === "survival" ? "Próxima onda" :
     r.next === "continue" ? "Continuar" :
     r.next === "tournament" ? "Ir à final" :
+    r.next === "story" ? "Próximo capítulo" :
     null;
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-ink/75">
@@ -930,6 +1001,40 @@ function ResultsOverlay(props: {
             <button type="button" className="bb-btn bb-btn-primary" onClick={props.onNext}>{nextLabel}</button>
           )}
           <button type="button" className="bb-btn" onClick={props.onMenu}>Menu principal</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StoryCard(props: {
+  campaign: StoryCampaign;
+  index: number;
+  fighter: CharacterDef;
+  onFight: () => void;
+  onBack: () => void;
+}) {
+  const beat = props.campaign.beats[props.index];
+  if (!beat) return null;
+  const foe = storyOpponent(props.fighter, beat.opponentId);
+  const stage = STAGES.find((s) => s.id === beat.stageId);
+  return (
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-ink/80">
+      <div className="bb-panel w-[min(480px,92vw)] p-6 text-center">
+        <p className="bb-eyebrow">{props.campaign.title} · CAPÍTULO {beat.chapter}</p>
+        <h2 className="font-display mt-2 text-3xl tracking-widest">{beat.title}</h2>
+        <p className="mt-4 text-sm text-pretty text-mute">{beat.intro}</p>
+        <div className="mt-5 flex items-center justify-center gap-4 text-xs tracking-widest text-ember">
+          <span>{props.fighter.name}</span>
+          <span className="text-mute">VS</span>
+          <span>{foe.name}</span>
+        </div>
+        <p className="mt-2 text-xs tracking-widest text-mute">
+          {stage?.name ?? beat.stageId} · {DIFFICULTY_LABELS[beat.difficulty]} · {props.index + 1}/{props.campaign.beats.length}
+        </p>
+        <div className="mt-6 grid gap-2">
+          <button type="button" className="bb-btn bb-btn-primary" onClick={props.onFight}>LUTAR</button>
+          <button type="button" className="bb-btn" onClick={props.onBack}>Voltar</button>
         </div>
       </div>
     </div>

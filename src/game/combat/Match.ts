@@ -14,7 +14,7 @@ import type { GraphicsSettings } from "../core/config";
 import { getSave } from "../core/save";
 import { HitStop, computeHitstop, HITSTOP } from "./hitstop";
 
-export type MatchMode = "arcade" | "versus" | "training" | "survival" | "tournament";
+export type MatchMode = "arcade" | "versus" | "training" | "survival" | "tournament" | "story";
 
 export type HudSnap = {
   p1: FighterSnap;
