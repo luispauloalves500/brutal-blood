@@ -22,7 +22,16 @@ const PROFILES: Record<Difficulty, Profile> = {
   nightmare: { reaction: 0.035, aggression: 0.92, block: 0.86, combo: 0.96, special: 0.72, super: 0.88, punish: 0.92, readRange: 330 },
 };
 
-export type TrainingCpu = "stand" | "block" | "jump" | "attack" | "normal";
+export type TrainingCpu =
+  | "stand"
+  | "block"
+  | "blockFirst"
+  | "blockRandom"
+  | "crouch"
+  | "jump"
+  | "attack"
+  | "attackAfterBlock"
+  | "normal";
 
 export class FighterAI {
   f: Fighter;
@@ -32,6 +41,7 @@ export class FighterAI {
   queue: string[] = [];
   queueDelay = 0;
   mode: TrainingCpu = "normal";
+  private sawHit = false;
 
   constructor(fighter: Fighter, difficulty: Difficulty = "normal") {
     this.f = fighter;
@@ -51,6 +61,43 @@ export class FighterAI {
     }
     if (this.mode === "block") {
       this.f.block(true);
+      this.f.stop();
+      return;
+    }
+    if (this.mode === "blockFirst") {
+      if (enemy.state === "attack" || this.sawHit) {
+        this.sawHit = enemy.state === "attack" || this.sawHit;
+        this.f.block(true);
+        this.f.stop();
+        return;
+      }
+      this.f.block(false);
+      this.f.stop();
+      return;
+    }
+    if (this.mode === "blockRandom") {
+      if (Math.random() < 0.55) this.f.block(true);
+      else this.f.block(false);
+      this.f.stop();
+      return;
+    }
+    if (this.mode === "crouch") {
+      this.f.block(false);
+      this.f.crouch(true);
+      return;
+    }
+    if (this.mode === "attackAfterBlock") {
+      if (this.f.state === "block" && enemy.state !== "attack") {
+        this.f.block(false);
+        this.tryMove("light");
+        return;
+      }
+      if (enemy.state === "attack") {
+        this.f.block(true);
+        this.f.stop();
+        return;
+      }
+      this.f.block(false);
       this.f.stop();
       return;
     }
@@ -118,6 +165,10 @@ export class FighterAI {
     if (dist > p.readRange) {
       this.f.move(Math.sign(dx));
       if (Math.random() < 0.04) this.f.jump();
+      return;
+    }
+    if (!enemy.grounded && dist < 160 && Math.random() < p.punish) {
+      this.tryMove("special2");
       return;
     }
     if (dist < 70 && Math.random() < 0.28) {

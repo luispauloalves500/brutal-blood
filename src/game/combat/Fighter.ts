@@ -48,6 +48,10 @@ export class Fighter {
   scaleY = 1;
   /** 0–1 squash applied on top of scale during/after hitstop. */
   impactSquash = 0;
+  throwLock = 0;
+  airHits = 0;
+  wakeupKind: "normal" | "quick" | "delay" = "normal";
+  juggleGravity = 1;
 
   constructor({ x, y, facing = 1, data, isAI = false }: { x: number; y: number; facing?: number; data: CharacterDef; isAI?: boolean }) {
     this.data = data;
@@ -92,6 +96,10 @@ export class Fighter {
     this.scaleX = 1;
     this.scaleY = 1;
     this.impactSquash = 0;
+    this.throwLock = 0;
+    this.airHits = 0;
+    this.wakeupKind = "normal";
+    this.juggleGravity = 1;
   }
 
   canAct() {
@@ -146,7 +154,7 @@ export class Fighter {
 
   block(on: boolean) {
     if (this.state === "ko" || this.state === "finish") return;
-    if (!this.canAct() && this.state !== "block") return;
+    if (!this.canAct() && this.state !== "block" && this.state !== "wakeup") return;
     this.blocking = on;
     if (on && this.grounded) {
       this.vx = 0;
@@ -156,8 +164,10 @@ export class Fighter {
 
   startAttack(move: MoveDef, cancel = false): boolean {
     if (!move) return false;
-    if (!cancel && !this.canAct() && this.state !== "taunt") return false;
     if (this.blocking) return false;
+    if (move.type === "throw" && !move.commandGrab && this.throwLock > 0) return false;
+    if (this.state === "wakeup" && !this.isReversal(move) && !cancel) return false;
+    if (!cancel && !this.canAct() && this.state !== "taunt" && this.state !== "wakeup") return false;
     if (move.cost && this.meter < move.cost) return false;
     if (move.superCost && this.superMeter < move.superCost) return false;
     if (move.cost) this.meter -= move.cost;
@@ -175,6 +185,24 @@ export class Fighter {
     return true;
   }
 
+  isReversal(move: MoveDef) {
+    if (this.state !== "wakeup") return false;
+    return move.type === "super" || move.type === "counter" || !!move.invuln || !!move.antiAir;
+  }
+
+  tech(fromX: number) {
+    this.state = "idle";
+    this.attack = null;
+    this.attackFrame = 0;
+    this.cancelReady = false;
+    this.blocking = false;
+    this.crouching = false;
+    this.stun = 8 * GAME.FRAME;
+    this.invuln = 10 * GAME.FRAME;
+    this.vx = Math.sign(this.x - fromX || this.facing) * 280;
+    this.hitFlash = 0.1;
+  }
+
   takeHit(move: MoveDef, fromX: number, scaled: number, blocked: boolean, counter = false) {
     if (this.state === "ko" || this.state === "finish" || this.invuln > 0) return { dmg: 0, blocked: true };
     const def = this.data.stats.defense;
@@ -184,6 +212,9 @@ export class Fighter {
     if (blocked) {
       dmg *= 0.18;
       kb *= 0.22;
+      if (move.type !== "special" && move.type !== "super" && move.type !== "finish") {
+        dmg = this.health <= 1 ? 0 : Math.min(dmg, this.health - 1);
+      }
       this.meter = Math.min(100, this.meter + 8);
       this.superMeter = Math.min(100, this.superMeter + 4);
       this.hitFlash = 0.05;
@@ -199,9 +230,13 @@ export class Fighter {
       this.comboDamage += dmg;
       this.maxCombo = Math.max(this.maxCombo, this.comboHits);
       this.comboTimer = GAME.COMBO_DROP + this.stun;
+      if (!this.grounded) this.airHits += 1;
       if (move.launcher && this.grounded) {
         this.vy = -520;
         this.grounded = false;
+      } else if (!this.grounded) {
+        this.juggleGravity = Math.min(2.4, 1 + this.airHits * 0.22);
+        this.vy = Math.min(this.vy, -180 / this.juggleGravity);
       }
     }
     this.health = Math.max(0, this.health - dmg);
@@ -235,6 +270,7 @@ export class Fighter {
     this.hitFlash = Math.max(0, this.hitFlash - dt);
     this.stun = Math.max(0, this.stun - dt);
     this.invuln = Math.max(0, this.invuln - dt);
+    this.throwLock = Math.max(0, this.throwLock - dt);
     this.comboTimer = Math.max(0, this.comboTimer - dt);
     this.impactSquash *= Math.exp(-14 * dt);
     if (this.impactSquash < 0.02) this.impactSquash = 0;
@@ -247,7 +283,7 @@ export class Fighter {
       if (this.dashTime <= 0 && this.state === "dash") this.state = "idle";
     }
 
-    if (!this.grounded) this.vy += GAME.GRAVITY * dt;
+    if (!this.grounded) this.vy += GAME.GRAVITY * this.juggleGravity * dt;
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     this.x = Math.max(30, Math.min(GAME.WIDTH - 30 - this.w, this.x));
@@ -256,15 +292,23 @@ export class Fighter {
       this.y = GAME.FLOOR - this.h;
       this.vy = 0;
       this.grounded = true;
+      this.airHits = 0;
+      this.juggleGravity = 1;
       if (this.state === "jump") this.state = "idle";
       if (this.state === "knockdown" && this.stun <= 0) {
         this.state = "wakeup";
         this.stateTime = 0;
+        const frames = this.wakeupKind === "quick" ? 8 : this.wakeupKind === "delay" ? 16 : GAME.WAKEUP_INVULN;
+        this.invuln = Math.max(this.invuln, frames * GAME.FRAME);
       }
       if (wasAir && this.state === "ko") this.vx *= 0.4;
     }
 
-    if (this.state === "wakeup" && this.stateTime > 0.35) this.state = "idle";
+    const wakeLen = this.wakeupKind === "quick" ? 0.18 : this.wakeupKind === "delay" ? 0.55 : 0.35;
+    if (this.state === "wakeup" && this.stateTime > wakeLen) {
+      this.state = "idle";
+      this.wakeupKind = "normal";
+    }
 
     const a = this.attack;
     if ((this.state === "attack" || this.state === "throw" || this.state === "counter" || this.state === "taunt") && a) {

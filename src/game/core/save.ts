@@ -48,10 +48,10 @@ export function defaultSave(): SaveData {
     audio: { ...DEFAULT_AUDIO },
     bindings: structuredClone(DEFAULT_BINDINGS),
     difficulty: "normal",
-    unlocked: ["kharon", "nyx", "draven"],
+    unlocked: ["kharon", "nyx", "draven", "vespera"],
     lastStage: "abandoned",
     rumble: true,
-    stats: { kharon: emptyStats(), nyx: emptyStats(), draven: emptyStats() },
+    stats: { kharon: emptyStats(), nyx: emptyStats(), draven: emptyStats(), vespera: emptyStats() },
     survivalBest: 0,
     arcadeCleared: false,
     tournamentWon: false,
@@ -69,6 +69,7 @@ function migrate(raw: SaveData): SaveData {
     p2: { ...base.bindings.p2, ...(raw.bindings?.p2 ?? {}) },
   };
   s.stats = { ...base.stats, ...(raw.stats ?? {}) };
+  s.unlocked = Array.from(new Set([...(base.unlocked), ...(raw.unlocked ?? [])]));
   s.version = GAME.SAVE_VERSION;
   return s;
 }

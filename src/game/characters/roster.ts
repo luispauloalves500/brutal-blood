@@ -2,6 +2,7 @@ import type { CharacterDef, RosterEntry } from "./types";
 import { kharon } from "./kharon";
 import { nyx } from "./nyx";
 import { draven } from "./draven";
+import { vespera } from "./vespera";
 
 const locked = (
   id: string,
@@ -15,13 +16,13 @@ const locked = (
   id, name, title, style, color, accent, locked: true, ratings,
 });
 
-export const playable: CharacterDef[] = [kharon, nyx, draven];
+export const playable: CharacterDef[] = [kharon, nyx, draven, vespera];
 
 export const roster: RosterEntry[] = [
   kharon,
   nyx,
   draven,
-  locked("vespera", "VESPERA", "A Rainha Rubra", "Magia de sangue", "#7a1230", "#e35a7a", { power: 7, speed: 6, defense: 5, range: 9 }),
+  vespera,
   locked("gorr", "GORR", "O Devorador", "Grappler", "#4a3a32", "#c45a32", { power: 10, speed: 3, defense: 9, range: 2 }),
   locked("shai", "SHAI", "Olho Carmesim", "Zoner", "#5a1a1a", "#ff5a5a", { power: 6, speed: 6, defense: 4, range: 10 }),
   locked("brakk", "BRAKK", "Quebra-Ossos", "Charge", "#3a4a3a", "#8aca6a", { power: 8, speed: 4, defense: 8, range: 6 }),

@@ -56,6 +56,9 @@ export type MoveDef = {
   hitstop?: number;
   airOk?: boolean;
   grab?: boolean;
+  armor?: boolean;
+  overhead?: boolean;
+  commandGrab?: boolean;
 };
 
 export type ComboDef = {
@@ -111,6 +114,8 @@ export type CharacterDef = {
   finishes: FinishDef[];
   introLine: string;
   winLine: string;
+  /** 1 easy … 5 expert. Select screen only. */
+  difficulty?: number;
 };
 
 export type RosterEntry = CharacterDef | {

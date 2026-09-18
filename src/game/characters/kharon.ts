@@ -25,6 +25,7 @@ export const kharon: CharacterDef = {
   lore: "Antigo verdugo da Fortaleza Final. Cada golpe da foice cobra uma dívida de sangue — e Kharon nunca perdoa o saldo.",
   introLine: "A sentença já foi escrita.",
   winLine: "Mais um nome na lista.",
+  difficulty: 2,
   specials: ["special1", "special2", "special3"],
   super: "super",
   finishes: [

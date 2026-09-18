@@ -20,10 +20,11 @@ import { AudioManager } from "@/game/audio/AudioManager";
 import { Game } from "@/game/Game";
 import { commandLabel } from "@/game/combat/commands";
 import { defaultHitstopFrames } from "@/game/combat/hitstop";
+import { moveTags, onBlockAdv, onHitAdv, signed } from "@/game/combat/frameData";
 import type { HudSnap, MatchMode, TrainingOpts } from "@/game/combat/Match";
 import { STAGES } from "@/game/graphics/stages";
 import { ARCADE_CONTINUES, ARCADE_LADDER, arcadeOpponent, buildBracket, healCarry, survivalDifficulty, survivalOpponent, survivalStage, type TourneyBracket } from "@/game/modes/runs";
-import { getStory, storyOpponent, type StoryCampaign } from "@/game/modes/story";
+import { getStory, hasStory, storyOpponent, type StoryCampaign } from "@/game/modes/story";
 import { HUD } from "./HUD";
 import { TouchControls } from "./TouchControls";
 
@@ -79,7 +80,7 @@ export function BrutalBlood() {
   const [bindings, setBindings] = useState<Bindings>(DEFAULT_BINDINGS);
   const [rumble, setRumble] = useState(true);
   const [remap, setRemap] = useState<{ slot: "p1" | "p2"; action: ActionName } | null>(null);
-  const [training, setTraining] = useState<TrainingOpts>({ infiniteHp: true, infiniteMeter: true, showHitboxes: false, cpu: "stand" });
+  const [training, setTraining] = useState<TrainingOpts>({ infiniteHp: true, infiniteMeter: true, showHitboxes: false, showFrameData: true, cpu: "stand" });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<Game | null>(null);
   const inputRef = useRef<Input | null>(null);
@@ -163,6 +164,7 @@ export function BrutalBlood() {
 
   const selectFighter = (entry: RosterEntry) => {
     if (!isPlayable(entry)) return;
+    if (mode === "story" && !hasStory(entry.id)) return;
     audioRef.current?.uiMove();
     if (mode === "versus") {
       if (pickSlot === 1) {
@@ -526,8 +528,8 @@ export function BrutalBlood() {
       {screen === "credits" && (
         <SimpleBack title="Créditos" onBack={() => nav("menu")}>
           <p className="max-w-md text-pretty text-mute">
-            BRUTAL BLOOD v{GAME.VERSION}. Motor de luta modular com Kharon, Nyx e Draven.
-            Combos exclusivos, especiais, Super Move, Blood Finish, Arcade, Survival, Torneio e História.
+            BRUTAL BLOOD v{GAME.VERSION}. Motor de luta modular com Kharon, Nyx, Draven e Vespera.
+            Combos, Counter, Punish, Throw Tech, Wake-up, Arcade, Survival, Torneio e História.
           </p>
         </SimpleBack>
       )}
@@ -577,6 +579,9 @@ export function BrutalBlood() {
             history={hud.inputHistory}
             hitstopFrames={hud.hitstopFrames}
             lastHitstop={hud.lastHitstop}
+            combatEvent={hud.combatEvent}
+            comboScale={hud.comboScale}
+            frameAdv={hud.frameAdv}
             onChange={(t) => { setTraining(t); gameRef.current?.setTraining(t); }}
             onReset={() => gameRef.current?.match.resetPositions()}
           />
@@ -736,7 +741,7 @@ function SelectView(props: {
       <div className="mx-auto mt-6 grid w-full max-w-6xl gap-6 lg:grid-cols-[1fr_18rem]">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {roster.map((f) => {
-            const locked = !isPlayable(f);
+            const locked = !isPlayable(f) || (props.mode === "story" && isPlayable(f) && !hasStory(f.id));
             const sel = (props.p1?.id === f.id) || (props.p2?.id === f.id);
             return (
               <button key={f.id} type="button" disabled={locked}
@@ -749,7 +754,7 @@ function SelectView(props: {
                 )}
                 <div className="relative">
                   <div className="text-[0.6rem] tracking-widest text-ember">
-                    {locked ? "BLOQUEADO" : props.mode === "story" && props.storyCleared.includes(f.id) ? "COMPLETO" : f.title}
+                    {locked ? (isPlayable(f) ? "SEM CAMPANHA" : "BLOQUEADO") : props.mode === "story" && props.storyCleared.includes(f.id) ? "COMPLETO" : f.title}
                   </div>
                   <h3 className="font-display text-xl tracking-widest">{f.name}</h3>
                 </div>
@@ -774,6 +779,7 @@ function SelectView(props: {
               <Stat label="Velocidade" v={selected.ratings.speed} />
               <Stat label="Defesa" v={selected.ratings.defense} />
               <Stat label="Alcance" v={selected.ratings.range} />
+              <Stat label="Uso" v={(selected.difficulty ?? 3) * 2} />
             </div>
           ) : (
             <p className="mt-6 text-sm text-mute">Selecione um lutador</p>
@@ -1104,6 +1110,7 @@ function MoveList({ fighter, onBack }: { fighter: CharacterDef; onBack: () => vo
     <div>
       <button type="button" className="bb-btn mb-3" onClick={onBack}>Voltar</button>
       <h3 className="font-display tracking-widest">{fighter.name}</h3>
+      <p className="mt-1 text-[0.65rem] tracking-widest text-mute">S/A/R · on-hit · on-block · dados do motor</p>
       <div className="mt-3 grid gap-2">
         {moves.map((m) => (
           <div key={m.id + m.name} className="border border-line bg-ink p-2 text-sm">
@@ -1112,8 +1119,14 @@ function MoveList({ fighter, onBack }: { fighter: CharacterDef; onBack: () => vo
               <span className="text-ember">{m.damage}</span>
             </div>
             <div className="text-[0.7rem] text-mute">
-              {m.command ? commandLabel(m.command) : ACTION_LABELS[m.button ?? "light"]} · {m.startup}/{m.active}/{m.recovery} · HS {defaultHitstopFrames(m)}F
+              {m.command ? commandLabel(m.command) : ACTION_LABELS[m.button ?? "light"]}
+              {" · "}{m.startup}/{m.active}/{m.recovery}
+              {" · "}{signed(onHitAdv(m))}/{signed(onBlockAdv(m))}
+              {m.cost ? ` · EN ${m.cost}` : ""}
+              {m.superCost ? ` · SUPER ${m.superCost}` : ""}
+              {" · HS "}{defaultHitstopFrames(m)}F
             </div>
+            <div className="mt-1 text-[0.6rem] tracking-widest text-ember">{moveTags(m).join(" · ")}</div>
           </div>
         ))}
         {fighter.finishes.map((f) => (
@@ -1133,6 +1146,9 @@ function TrainingDock(props: {
   history: string[];
   hitstopFrames: number;
   lastHitstop: number;
+  combatEvent: string;
+  comboScale: number;
+  frameAdv: number;
   onChange: (t: TrainingOpts) => void;
   onReset: () => void;
 }) {
@@ -1144,18 +1160,25 @@ function TrainingDock(props: {
       <p className="tabular-nums text-mute">
         Hitstop: {props.hitstopFrames > 0 ? `${props.hitstopFrames}F` : "—"} · último {props.lastHitstop}F
       </p>
+      <p className="tabular-nums text-ember">{props.combatEvent || "—"} · scale {Math.round(props.comboScale * 100)}%</p>
+      <p className="tabular-nums text-mute">Frame adv: {props.frameAdv > 0 ? `+${props.frameAdv}` : props.frameAdv}</p>
       <p className="truncate text-mute">Inputs: {props.history.slice(-8).join(" ")}</p>
       <label className="mt-2 flex justify-between">HP infinito <input type="checkbox" checked={t.infiniteHp} onChange={(e) => props.onChange({ ...t, infiniteHp: e.target.checked })} /></label>
       <label className="mt-1 flex justify-between">Energia infinita <input type="checkbox" checked={t.infiniteMeter} onChange={(e) => props.onChange({ ...t, infiniteMeter: e.target.checked })} /></label>
       <label className="mt-1 flex justify-between">Hitboxes <input type="checkbox" checked={t.showHitboxes} onChange={(e) => props.onChange({ ...t, showHitboxes: e.target.checked })} /></label>
+      <label className="mt-1 flex justify-between">Frame data <input type="checkbox" checked={t.showFrameData !== false} onChange={(e) => props.onChange({ ...t, showFrameData: e.target.checked })} /></label>
       <label className="mt-2 block text-mute">
         CPU
         <select className="mt-1 w-full border border-line bg-ink p-1 text-bone" value={t.cpu}
           onChange={(e) => props.onChange({ ...t, cpu: e.target.value as TrainingOpts["cpu"] })}>
           <option value="stand">Parada</option>
-          <option value="block">Defendendo</option>
+          <option value="block">Defesa sempre</option>
+          <option value="blockFirst">Defesa após hit</option>
+          <option value="blockRandom">Defesa aleatória</option>
+          <option value="crouch">Agachar</option>
           <option value="jump">Pulando</option>
           <option value="attack">Atacando</option>
+          <option value="attackAfterBlock">Ataque após defesa</option>
           <option value="normal">Normal</option>
         </select>
       </label>

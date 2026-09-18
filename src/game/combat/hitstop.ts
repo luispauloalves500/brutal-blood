@@ -11,7 +11,9 @@ export type HitstopKind =
   | "finish"
   | "throw"
   | "super"
-  | "superFreeze";
+  | "superFreeze"
+  | "clash"
+  | "tech";
 
 export const HITSTOP = {
   light: 3,
@@ -28,6 +30,8 @@ export const HITSTOP = {
   koBonus: 10,
   finish: 18,
   superFreeze: 12,
+  clash: 8,
+  tech: 7,
   min: 1,
   max: 24,
 } as const;
@@ -214,6 +218,10 @@ export class HitStop {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (this.kind === "block") {
       ctx.fillStyle = `rgba(180, 210, 255, ${0.12 * t})`;
+    } else if (this.kind === "clash") {
+      ctx.fillStyle = `rgba(244, 228, 196, ${0.18 * t})`;
+    } else if (this.kind === "tech") {
+      ctx.fillStyle = `rgba(140, 200, 255, ${0.16 * t})`;
     } else if (this.kind === "ko" || this.kind === "finish") {
       ctx.fillStyle = `rgba(90, 0, 8, ${0.28 * t})`;
     } else if (this.kind === "super" || this.kind === "superFreeze") {

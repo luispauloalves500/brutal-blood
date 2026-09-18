@@ -166,6 +166,10 @@ export function getStory(id: string): StoryCampaign {
   return CAMPAIGNS[id] ?? kharonStory;
 }
 
+export function hasStory(id: string) {
+  return Boolean(CAMPAIGNS[id]);
+}
+
 export function storyOpponent(p1: CharacterDef, opponentId: string): CharacterDef {
   if (opponentId === p1.id) return otherFighter(p1.id);
   return playable.find((p) => p.id === opponentId) ?? otherFighter(p1.id);

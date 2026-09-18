@@ -25,6 +25,7 @@ export const draven: CharacterDef = {
   lore: "Lutava em fossos industriais com as mãos amarradas em ferro. Draven não recua — ele entra, trava e parte ossos até o sino.",
   introLine: "Chega mais. Eu quebro de graça.",
   winLine: "Fica no chão. O ferro já cobrou.",
+  difficulty: 3,
   specials: ["special1", "special2", "special3"],
   super: "super",
   finishes: [
@@ -93,7 +94,7 @@ export const draven: CharacterDef = {
       id: "special1", name: "Passo de Ferro", type: "special", command: "66L",
       damage: 140, range: 88, startup: 8, active: 7, recovery: 16, hitStun: 15, blockStun: 9,
       knockback: 240, priority: 5, meterGain: 5, superGain: 10, cost: 28, cancelInto: ["special3", "super"],
-      height: "mid", advance: 560, invuln: 8, hitstop: 6,
+      height: "mid", advance: 560, invuln: 8, armor: true, hitstop: 6,
     },
     special2: {
       id: "special2", name: "Gancho Sujo", type: "special", command: "623H",
@@ -105,7 +106,7 @@ export const draven: CharacterDef = {
       id: "special3", name: "Quebra-Costela", type: "special", command: "214H",
       damage: 180, range: 62, startup: 7, active: 4, recovery: 26, hitStun: 0, blockStun: 0,
       knockback: 380, priority: 8, meterGain: 8, superGain: 12, cost: 40, cancelInto: ["super"],
-      height: "mid", grab: true, knockdown: true, hitstop: 9,
+      height: "mid", grab: true, commandGrab: true, knockdown: true, hitstop: 9,
     },
     super: {
       id: "super", name: "Rajada de Ferro", type: "super", command: "236236H",

@@ -13,6 +13,7 @@ import type { CharacterDef, MoveDef } from "../characters/types";
 import type { GraphicsSettings } from "../core/config";
 import { getSave } from "../core/save";
 import { HitStop, computeHitstop, HITSTOP } from "./hitstop";
+import { comboScale, stunScale, COMBO_LIMIT, onHitAdv, onBlockAdv } from "./frameData";
 
 export type MatchMode = "arcade" | "versus" | "training" | "survival" | "tournament" | "story";
 
@@ -37,6 +38,9 @@ export type HudSnap = {
   lastHitstop: number;
   runLabel: string;
   winsNeeded: number;
+  combatEvent: string;
+  comboScale: number;
+  frameAdv: number;
 };
 
 export type FighterSnap = {
@@ -53,6 +57,7 @@ export type TrainingOpts = {
   infiniteHp: boolean;
   infiniteMeter: boolean;
   showHitboxes: boolean;
+  showFrameData: boolean;
   cpu: TrainingCpu;
 };
 
@@ -94,9 +99,14 @@ export class Match {
   buf1 = new CommandBuffer();
   buf2 = new CommandBuffer();
   projectiles: Proj[] = [];
-  training: TrainingOpts = { infiniteHp: true, infiniteMeter: true, showHitboxes: false, cpu: "stand" };
+  training: TrainingOpts = { infiniteHp: true, infiniteMeter: true, showHitboxes: false, showFrameData: true, cpu: "stand" };
   lastTrainingDmg = 0;
   private pendingCancel: { fighter: Fighter; move: MoveDef } | null = null;
+  private lastEvent = "";
+  private eventTime = 0;
+  private lastScale = 1;
+  private lastAdv = 0;
+  private hudStamp = "";
   onHUD?: (h: HudSnap) => void;
   onMatchEnd?: (won: boolean) => void;
   onPause?: (v: boolean) => void;
@@ -267,10 +277,11 @@ export class Match {
     this.p1.update(dt);
     this.p2.update(dt);
     this.updateProjectiles(dt);
-    this.resolveHit(this.p1, this.p2);
-    this.resolveHit(this.p2, this.p1);
+    this.resolveCombat();
     this.separate();
     this.particles.update(dt);
+    this.eventTime = Math.max(0, this.eventTime - dt);
+    if (this.eventTime <= 0) this.lastEvent = "";
 
     if (this.mode === "training") this.updateTraining(dt);
     else if (this.p1.health <= 0 || this.p2.health <= 0 || this.timer <= 0) this.endRound();
@@ -327,6 +338,12 @@ export class Match {
 
   private handleHuman(f: Fighter, slot: "p1" | "p2", buf: CommandBuffer) {
     if (f.health <= 0) return;
+    if (f.state === "knockdown") {
+      if (this.input.isDown(slot, "down")) f.wakeupKind = "delay";
+      else if (this.input.isDown(slot, "up")) f.wakeupKind = "quick";
+      else f.wakeupKind = "normal";
+      return;
+    }
     const dash = buf.dashDir();
     if (dash && f.canAct()) {
       f.dash(dash * f.facing);
@@ -353,7 +370,9 @@ export class Match {
     const move = buf.resolveMove(f.data, btn, !f.grounded, false);
     if (!move) return;
     const cancel = f.canCancel(move.id);
+    const reversal = f.state === "wakeup";
     if (f.startAttack(move, cancel)) {
+      if (reversal) this.noteEvent("REVERSAL");
       if (move.type === "special" || move.type === "super") this.audio.special();
       else this.audio.whoosh();
       if (move.type === "super") this.armSuperFreeze(f);
@@ -362,17 +381,19 @@ export class Match {
   }
 
   private spawnProjectile(f: Fighter, move: MoveDef) {
+    const kind = move.projectile ?? "wave";
+    const speed = kind === "needle" ? 620 : kind === "veil" ? 300 : kind === "altar" ? 70 : 480;
     this.projectiles.push({
       x: f.facing > 0 ? f.x + f.w : f.x - 40,
-      y: f.y + 48,
-      vx: f.facing * (move.id.includes("needle") || move.projectile === "needle" ? 620 : 480),
-      w: move.projectile === "needle" ? 36 : 56,
-      h: 22,
+      y: kind === "altar" ? f.y + 92 : f.y + 48,
+      vx: f.facing * speed,
+      w: kind === "altar" ? 48 : kind === "veil" ? 44 : move.projectile === "needle" ? 36 : 56,
+      h: kind === "altar" ? 40 : 22,
       owner: f,
       damage: move.damage,
       knock: move.knockback,
-      life: 1.4,
-      kind: move.projectile ?? "wave",
+      life: kind === "altar" ? 2.4 : 1.4,
+      kind,
       hit: false,
       hitstop: move.hitstop ?? HITSTOP.special,
     });
@@ -404,12 +425,106 @@ export class Match {
     });
   }
 
+  private noteEvent(label: string) {
+    this.lastEvent = label;
+    this.eventTime = 1.1;
+  }
+
+  private resolveCombat() {
+    if (this.state !== "fight") return;
+    const a = this.p1.getAttackBox();
+    const b = this.p2.getAttackBox();
+    const g1 = !!this.p1.attack?.grab;
+    const g2 = !!this.p2.attack?.grab;
+    if (a && b && intersects(a, b) && !g1 && !g2) {
+      const p = this.p1.attack?.priority ?? 0;
+      const q = this.p2.attack?.priority ?? 0;
+      if (Math.abs(p - q) <= 1) {
+        this.doClash();
+        return;
+      }
+      if (p > q) {
+        this.p2.hitDone = true;
+        this.resolveHit(this.p1, this.p2);
+      } else {
+        this.p1.hitDone = true;
+        this.resolveHit(this.p2, this.p1);
+      }
+      return;
+    }
+    this.resolveHit(this.p1, this.p2);
+    this.resolveHit(this.p2, this.p1);
+  }
+
+  private doClash() {
+    const midX = (this.p1.x + this.p2.x + this.p1.w) / 2;
+    const midY = (this.p1.y + this.p2.y) / 2 + 40;
+    this.p1.hitDone = true;
+    this.p2.hitDone = true;
+    this.p1.vx = -this.p1.facing * 240;
+    this.p2.vx = -this.p2.facing * 240;
+    this.p1.cancelReady = true;
+    this.p2.cancelReady = true;
+    this.hitStop.trigger({
+      frames: HITSTOP.clash,
+      kind: "clash",
+      x: midX,
+      y: midY,
+      dir: 1,
+      color: "#f4e4c4",
+      attacker: this.p1,
+      victim: this.p2,
+    });
+    this.particles.spawn(midX, midY, 14, "#f4e4c4", true);
+    this.camera.addTrauma(0.22);
+    this.audio.block();
+    this.noteEvent("CLASH");
+  }
+
+  private doTech(a: Fighter, b: Fighter) {
+    a.hitDone = true;
+    b.hitDone = true;
+    a.tech(b.x);
+    b.tech(a.x);
+    const midX = (a.x + b.x) / 2 + 30;
+    this.hitStop.trigger({
+      frames: HITSTOP.tech,
+      kind: "tech",
+      x: midX,
+      y: a.y + 50,
+      dir: 1,
+      color: "#8ec8ff",
+      attacker: a,
+      victim: b,
+    });
+    this.particles.spawn(midX, a.y + 50, 10, "#8ec8ff", true);
+    this.audio.whoosh();
+    this.noteEvent("TECH");
+  }
+
+  private throwTechs(def: Fighter) {
+    if (def.state === "throw" || def.attack?.grab) return true;
+    const slot: "p1" | "p2" = def === this.p1 ? "p1" : "p2";
+    return this.input.isDown(slot, "throw");
+  }
+
   private resolveHit(att: Fighter, def: Fighter) {
     if (this.state !== "fight") return;
     if (def.state === "ko" || att.state === "ko") return;
     const box = att.getAttackBox();
     if (!intersects(box, def.getHurtBox())) return;
     if (att.attack?.grab) {
+      const commandGrab = !!att.attack.commandGrab || att.attack.type === "special";
+      if (!commandGrab && this.throwTechs(def)) {
+        this.doTech(att, def);
+        att.throwLock = 0.75;
+        def.throwLock = 0.75;
+        return;
+      }
+      if (commandGrab && def.attack?.commandGrab) {
+        this.doTech(att, def);
+        return;
+      }
       if (def.blocking || def.state === "attack") {
         att.hitDone = true;
         return;
@@ -423,11 +538,18 @@ export class Match {
   private applyHit(att: Fighter, def: Fighter, move: MoveDef) {
     if (def.state === "ko") return;
     const blocked = def.isBlockingHeight(move.height);
-    const counter = def.state === "attack" && !blocked;
+    const atk = def.attack;
+    const inStartup = def.state === "attack" && atk && def.attackFrame < atk.startup + atk.active;
+    const inRecovery = def.state === "attack" && atk && def.attackFrame >= atk.startup + atk.active;
+    const counter = !!inStartup && !blocked;
+    const punish = !!inRecovery && !blocked;
     const hits = (this.comboOwner === (att === this.p1 ? 1 : 2) ? def.comboHits : 0) + 1;
-    const scale = Math.max(0.3, 1 - (hits - 1) * 0.08);
+    const scale = comboScale(hits);
+    this.lastScale = scale;
     const res = def.takeHit(move, att.x, scale * att.data.stats.strength, blocked, counter);
+    if (!blocked && !res.blocked) def.stun *= stunScale(hits);
     this.lastTrainingDmg = res.dmg;
+    this.lastAdv = blocked ? onBlockAdv(move) : onHitAdv(move);
     const impactX = def.x + def.w / 2;
     const impactY = def.y + (def.crouching ? 80 : 50);
     const dir = Math.sign(def.x - att.x) || att.facing;
@@ -448,6 +570,16 @@ export class Match {
       att.gainOnHit(move, hits);
       att.cancelReady = true;
       this.comboOwner = att === this.p1 ? 1 : 2;
+      this.noteEvent(punish ? "PUNISH" : counter ? "COUNTER" : ko ? "KO" : "HIT");
+      if (move.grab) {
+        att.throwLock = 0.75;
+        def.throwLock = 0.75;
+      }
+      if (def.comboHits >= COMBO_LIMIT && def.health > 0) {
+        def.state = "knockdown";
+        def.stun = Math.max(def.stun, 0.35);
+      }
+      this.tryWallSplat(def, move);
       this.particles.spawn(impactX, impactY, kind === "ko" || move.type === "super" ? 22 : frames >= 7 ? 16 : 10, att.data.accent);
       this.camera.addTrauma(kind === "ko" ? 0.7 : move.type === "super" ? 0.55 : move.type === "special" || counter ? 0.32 : 0.16);
       if (frames >= 8) this.camera.punch(1.06 + frames * 0.012);
@@ -459,10 +591,28 @@ export class Match {
         att.hitsLanded += 1;
       }
     } else {
+      this.noteEvent("BLOCK");
       this.audio.block();
       this.particles.spawn(impactX, impactY, 6, "#8ec8ff", true);
       this.camera.addTrauma(0.08);
     }
+  }
+
+  private tryWallSplat(def: Fighter, move: MoveDef) {
+    if (def.health <= 0 || def.state === "ko") return;
+    const atWall = def.x <= 34 || def.x >= GAME.WIDTH - 34 - def.w;
+    if (!atWall) return;
+    if (move.knockback < 160 && def.comboHits < 2) return;
+    const inward = def.x < GAME.WIDTH / 2 ? 1 : -1;
+    def.vx = inward * 240;
+    def.vy = -400;
+    def.grounded = false;
+    def.state = "hit";
+    def.stun = Math.max(def.stun, 18 * GAME.FRAME);
+    this.camera.addTrauma(0.3);
+    this.camera.kick(inward, 8);
+    this.audio.thump();
+    this.noteEvent("WALL");
   }
 
   private separate() {
@@ -621,6 +771,9 @@ export class Match {
       bonus: Math.round(Math.max(0, (attacker.comboHits - 2) * 4)),
     } : null;
     const last = this.p1.roundWins === this.winsNeeded - 1 && this.p2.roundWins === this.winsNeeded - 1;
+    const stamp = `${Math.ceil(this.timer)}|${Math.round(this.p1.health)}|${Math.round(this.p2.health)}|${this.message}|${this.lastEvent}|${combo?.hits ?? 0}|${this.paused}|${this.hitStop.remaining}|${this.state}|${this.lastAdv}`;
+    if (stamp === this.hudStamp) return;
+    this.hudStamp = stamp;
     this.onHUD?.({
       p1: snap(this.p1),
       p2: snap(this.p2),
@@ -642,6 +795,9 @@ export class Match {
       lastHitstop: this.hitStop.lastFrames,
       runLabel: this.runLabel,
       winsNeeded: this.winsNeeded,
+      combatEvent: this.lastEvent,
+      comboScale: this.lastScale,
+      frameAdv: this.lastAdv,
     });
   }
 

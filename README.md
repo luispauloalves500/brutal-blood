@@ -2,16 +2,16 @@
 
 Jogo de luta 2D em HTML5 Canvas + TypeScript.
 
-Versão **0.6** — Kharon, Nyx e Draven. Arcade, Versus, Treino, Survival, Torneio e História.
+Versão **0.7** — Kharon, Nyx, Draven e Vespera.
 
 ## Modos
 
 - **Arcade** — 5 ruas até o chefe, 1 continue
 - **Versus** — local, 2 jogadores
-- **Treino** — hitboxes, frame data, hitstop
+- **Treino** — dummy, hitboxes, frame data, scaling, frame advantage
 - **Survival** — ondas infinitas, recorde salvo
 - **Torneio** — chave de 4, semi e final
-- **História** — campanha de 4 capítulos por lutador
+- **História** — campanha de 4 capítulos (Kharon, Nyx, Draven)
 
 ## Lutadores
 
@@ -20,6 +20,13 @@ Versão **0.6** — Kharon, Nyx e Draven. Arcade, Versus, Treino, Survival, Torn
 | **Kharon** | Execução brutal — foice, pressão curta, antiaéreo |
 | **Nyx** | Assassina móvel — mixups, dash, projéteis |
 | **Draven** | Boxe sujo — rushdown, armadura, command grab |
+| **Vespera** | Zoning — véus, altares, controle de espaço |
+
+## Combate (v0.7)
+
+Counter, Punish, Clash, Throw Tech, Command Grab, Wake-up (normal / quick / delay), wall splat, damage/stun/gravity scaling, combo limit.
+
+Lista de golpes lê **os mesmos dados do motor** (startup/active/recovery, vantagem, tags).
 
 ## Controles (P1)
 
@@ -52,13 +59,15 @@ npm run typecheck
 npm run build
 ```
 
+O combate roda 100% no cliente (`localStorage`). Auth/Postgres/Better Auth na pasta `server/` e `src/lib/auth` são restos do scaffold — **não são usados pelo jogo**.
+
 ## Stack
 
 - Vite + TanStack Start
-- React + TypeScript
-- Canvas 2D (simulação 60 FPS)
+- React + TypeScript (menus / HUD)
+- Canvas 2D, simulação 60 FPS independente do refresh
 - Áudio procedural, save no `localStorage`
 
 ## Status
 
-Fase 1–3 fechadas. Fase 4 em curso: Draven, Torneio e História jogáveis. O resto do elenco (Vespera, Gorr, Shai, Brakk, Mora) ainda bloqueado.
+v0.7: combate polido, Treino avançado, Vespera jogável. Sem campanha Story da Vespera ainda. Boss dedicado, Gorr/Shai/Brakk/Mora, multiplayer e NFT ficam para depois.

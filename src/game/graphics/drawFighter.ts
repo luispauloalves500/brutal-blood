@@ -28,6 +28,7 @@ export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, sprites: 
 
   if (f.data.id === "nyx") drawNyx(ctx, f);
   else if (f.data.id === "draven") drawDraven(ctx, f);
+  else if (f.data.id === "vespera") drawVespera(ctx, f);
   else drawKharon(ctx, f);
 
   if (f.blocking) {
@@ -155,6 +156,39 @@ function drawDraven(ctx: CanvasRenderingContext2D, f: Fighter) {
   ctx.fillRect(-18, -8, 22, 18);
   ctx.fillStyle = "#6a5a4a";
   ctx.fillRect(-26, -10, 10, 22);
+  ctx.restore();
+}
+
+function drawVespera(ctx: CanvasRenderingContext2D, f: Fighter) {
+  const c = f.hitFlash > 0 ? "#fff" : f.data.color;
+  const swing = attackSwing(f);
+  ctx.fillStyle = c;
+  ctx.shadowColor = f.data.accent;
+  ctx.shadowBlur = 20;
+  ctx.fillRect(20, 38, 38, 84);
+  ctx.beginPath();
+  ctx.arc(39, 22, 16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#2a0814";
+  ctx.fillRect(16, 14, 46, 8);
+  ctx.fillRect(18, 114, 16, 36);
+  ctx.fillRect(44, 114, 16, 36);
+  ctx.fillStyle = f.data.accent;
+  ctx.fillRect(24, 50, 30, 5);
+  ctx.beginPath();
+  ctx.moveTo(28, 12);
+  ctx.lineTo(39, -6);
+  ctx.lineTo(50, 12);
+  ctx.fill();
+  ctx.save();
+  ctx.translate(56, 52);
+  ctx.rotate(-0.4 + swing * 0.5);
+  ctx.fillStyle = "#e35a7a";
+  ctx.globalAlpha = 0.85;
+  ctx.beginPath();
+  ctx.ellipse(40, 0, 36 + swing * 10, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 

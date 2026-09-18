@@ -37,8 +37,8 @@ export class CommandBuffer {
   }
 
   dashDir(): 0 | 1 | -1 {
-    if (this.frame - this.lastForwardTap <= 12 && this.forwardHeld && this.countTap(6) >= 2) return 1;
-    if (this.frame - this.lastBackTap <= 12 && this.backHeld && this.countTap(4) >= 2) return -1;
+    if (this.frame - this.lastForwardTap <= 16 && this.forwardHeld && this.countTap(6) >= 2) return 1;
+    if (this.frame - this.lastBackTap <= 16 && this.backHeld && this.countTap(4) >= 2) return -1;
     return 0;
   }
 
@@ -54,7 +54,7 @@ export class CommandBuffer {
     let idx = seq.length - 1;
     for (let i = this.dirs.length - 1; i >= 0 && idx >= 0; i--) {
       const d = this.dirs[i];
-      if (this.frame - d.f > 22) break;
+      if (this.frame - d.f > 28) break;
       if (this.motionEq(d.n, seq[idx])) idx--;
     }
     return idx < 0;

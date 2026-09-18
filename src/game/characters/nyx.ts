@@ -25,6 +25,7 @@ export const nyx: CharacterDef = {
   lore: "Nasceu na Catedral Negra quando a lua foi engolida. Nyx corta o espaço entre um passo e o outro — e quem pisca, morre.",
   introLine: "Você já está atrasado.",
   winLine: "O vazio não deixa rastros.",
+  difficulty: 4,
   specials: ["special1", "special2", "special3"],
   super: "super",
   finishes: [

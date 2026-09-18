@@ -17,7 +17,14 @@ export function HUD({ hud }: { hud: HudSnap | null }) {
           <div className="text-2xl tracking-widest text-blood">{hud.combo.hits} HITS</div>
           <div className="text-xs tracking-widest text-mute">
             {hud.combo.damage} DMG · MAX {hud.combo.max} · BÓNUS {hud.combo.bonus}
+            {hud.comboScale < 0.99 ? ` · SCALE ${Math.round(hud.comboScale * 100)}%` : ""}
           </div>
+        </div>
+      )}
+      {hud.combatEvent && (
+        <div className="col-span-3 justify-self-center font-display text-sm tracking-[0.32em] text-ember">
+          {hud.combatEvent}
+          {hud.mode === "training" && hud.frameAdv !== 0 ? `  ${hud.frameAdv > 0 ? "+" : ""}${hud.frameAdv}F` : ""}
         </div>
       )}
       {hud.mode === "training" && hud.hitstopFrames > 0 && (
