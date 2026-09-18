@@ -8,7 +8,7 @@ export type DrawAnimOpts = {
   attackFrame?: number;
 };
 
-export type SourceMode = "DEDICATED" | "FALLBACK";
+export type SourceMode = "DEDICATED" | "GROUP_FALLBACK" | "CLIP_FALLBACK" | "CANVAS";
 
 type Resolved = {
   clip: AnimClip;
@@ -18,7 +18,7 @@ type Resolved = {
   columns: number;
   rows: number;
   fps: number;
-  fallback: boolean;
+  mode: SourceMode;
   mask?: CanvasImageSource;
 };
 
@@ -39,15 +39,18 @@ export class SpriteAnimator {
   lastFrame = 0;
   lastSrc = "";
   lastFallback = false;
-  lastMode: SourceMode = "FALLBACK";
+  lastMode: SourceMode = "CANVAS";
+  lastType: "DEDICATED" | "GROUP" | "CLIP" | "CANVAS" = "CANVAS";
   currentAnim = "";
   lastMoveId = "";
   animOrigin = 0;
+  skin = "default";
 
-  constructor(id: string, pack: CharacterSpritePack | null = null, palette?: PaletteDef) {
+  constructor(id: string, pack: CharacterSpritePack | null = null, palette?: PaletteDef, skin = "default") {
     this.id = id;
     this.pack = pack;
     this.palette = palette ?? DEFAULT_PALETTES[0]!;
+    this.skin = skin;
     this.ready = !!pack && pack.images.size > 0;
   }
 
@@ -60,45 +63,58 @@ export class SpriteAnimator {
     if (!this.pack) return null;
     const start = this.clip(name);
     if (!start) return null;
-    const seen = new Set<string>();
-    let cur: AnimClip | undefined = start;
+    const dedicated = this.tryDedicated(start, "DEDICATED");
+    if (dedicated) return dedicated;
+    const group = this.tryGroup(start, "GROUP_FALLBACK");
+    if (group) return group;
+
+    const seen = new Set<string>([start.name]);
+    let cur: AnimClip | undefined = start.fallback ? this.pack.clips[start.fallback] : undefined;
     while (cur && !seen.has(cur.name)) {
       seen.add(cur.name);
-      if (cur.src) {
-        const img = this.pack.images.get(cur.src);
-        if (img) {
-          const layout = clampLayout(cur.src, cur.frames, Math.max(1, cur.columns || cur.frames), Math.max(1, cur.rows ?? 1));
-          return {
-            clip: cur,
-            src: cur.src,
-            image: img,
-            ...layout,
-            fps: cur.fps,
-            fallback: cur !== start || !start.src,
-            mask: cur.maskSrc ? this.pack.images.get(cur.maskSrc) : undefined,
-          };
-        }
-      }
-      if (cur.fallbackSrc) {
-        const img = this.pack.images.get(cur.fallbackSrc);
-        if (img) {
-          const frames = Math.max(1, cur.sheetFrames || cur.frames);
-          const cols = Math.max(1, cur.sheetColumns || cur.columns || frames);
-          const rows = Math.max(1, cur.sheetRows ?? cur.rows ?? 1);
-          const layout = clampLayout(cur.fallbackSrc, frames, cols, rows);
-          return {
-            clip: cur,
-            src: cur.fallbackSrc,
-            image: img,
-            ...layout,
-            fps: cur.sheetFps || cur.fps,
-            fallback: true,
-          };
-        }
-      }
+      const fromClip = this.tryDedicated(cur, "CLIP_FALLBACK");
+      if (fromClip) return fromClip;
+      const fromGroup = this.tryGroup(cur, "GROUP_FALLBACK");
+      if (fromGroup) return fromGroup;
       cur = cur.fallback ? this.pack.clips[cur.fallback] : undefined;
     }
     return null;
+  }
+
+  private tryDedicated(clip: AnimClip, mode: SourceMode): Resolved | null {
+    if (!clip.src || !this.pack) return null;
+    const img = this.pack.images.get(clip.src);
+    if (!img) return null;
+    const cols = Math.max(1, clip.columns || clip.frames);
+    const rows = Math.max(1, clip.rows ?? 1);
+    const layout = clampLayout(clip.src, clip.frames, cols, rows, "DEDICATED");
+    return {
+      clip,
+      src: clip.src,
+      image: img,
+      ...layout,
+      fps: clip.fps,
+      mode,
+      mask: clip.maskSrc ? this.pack.images.get(clip.maskSrc) : undefined,
+    };
+  }
+
+  private tryGroup(clip: AnimClip, mode: SourceMode): Resolved | null {
+    if (!clip.fallbackSrc || !this.pack) return null;
+    const img = this.pack.images.get(clip.fallbackSrc);
+    if (!img) return null;
+    const frames = Math.max(1, clip.sheetFrames || 1);
+    const cols = Math.max(1, clip.sheetColumns || frames);
+    const rows = Math.max(1, clip.sheetRows ?? 1);
+    const layout = clampLayout(clip.fallbackSrc, frames, cols, rows, "GROUP");
+    return {
+      clip,
+      src: clip.fallbackSrc,
+      image: img,
+      ...layout,
+      fps: clip.sheetFps || clip.fps,
+      mode,
+    };
   }
 
   draw(
@@ -113,7 +129,13 @@ export class SpriteAnimator {
   ): boolean {
     const opts: DrawAnimOpts = typeof timeOrOpts === "number" ? { time: timeOrOpts } : timeOrOpts;
     const resolved = this.resolve(anim);
-    if (!resolved) return false;
+    if (!resolved) {
+      this.lastAnim = anim;
+      this.lastMode = "CANVAS";
+      this.lastType = "CANVAS";
+      this.lastFallback = true;
+      return false;
+    }
 
     const moveId = opts.attack?.id ?? "";
     if (anim !== this.currentAnim || moveId !== this.lastMoveId) {
@@ -129,8 +151,9 @@ export class SpriteAnimator {
     this.lastAnim = anim;
     this.lastFrame = i;
     this.lastSrc = resolved.src;
-    this.lastFallback = resolved.fallback;
-    this.lastMode = resolved.fallback ? "FALLBACK" : "DEDICATED";
+    this.lastMode = resolved.mode;
+    this.lastFallback = resolved.mode !== "DEDICATED";
+    this.lastType = resolved.mode === "DEDICATED" ? "DEDICATED" : resolved.mode === "CLIP_FALLBACK" ? "CLIP" : "GROUP";
 
     const cols = resolved.columns;
     const rows = resolved.rows;
@@ -155,6 +178,7 @@ export class SpriteAnimator {
     ctx.translate(x + w / 2 + ox * facing, y + h + oy);
     ctx.scale(facing, 1);
     if (!resolved.mask && !isIdentityPalette(this.palette)) {
+      // Full-image palette fallback when no maskSrc is loaded.
       ctx.filter = paletteFilter(this.palette);
     }
     ctx.drawImage(
@@ -172,7 +196,7 @@ export class SpriteAnimator {
 
   private sheetForDraw(resolved: Resolved): CanvasImageSource {
     if (!resolved.mask || isIdentityPalette(this.palette)) return resolved.image;
-    return tintWithMask(resolved.src, this.palette, resolved.image, resolved.mask);
+    return tintWithMask(this.skin, resolved.src, resolved.clip.maskSrc ?? "", this.palette, resolved.image, resolved.mask);
   }
 
   debug(
@@ -194,28 +218,40 @@ export class SpriteAnimator {
     ctx.fillStyle = "#fff8f0";
     ctx.font = "10px monospace";
     const file = this.lastSrc.split("/").pop() ?? this.lastSrc;
-    ctx.fillText(`ANIM: ${this.lastAnim} #${this.lastFrame}`, x, y - 30);
-    ctx.fillText(`SOURCE: ${file}`, x, y - 18);
-    ctx.fillText(`MODE: ${this.lastMode}  PAL: ${this.palette.id}  f${facing > 0 ? "+" : "-"}`, x, y - 6);
+    ctx.fillText(`ANIM: ${this.lastAnim} #${this.lastFrame}`, x, y - 42);
+    ctx.fillText(`SOURCE: ${file || "canvas"}`, x, y - 30);
+    ctx.fillText(`MODE: ${this.lastMode}`, x, y - 18);
+    ctx.fillText(`TYPE: ${this.lastType}  PAL: ${this.palette.id}  f${facing > 0 ? "+" : "-"}`, x, y - 6);
     ctx.restore();
   }
 }
 
-function clampLayout(src: string, frames: number, columns: number, rows: number) {
+function clampLayout(src: string, frames: number, columns: number, rows: number, kind: string) {
   const cells = Math.max(1, columns * rows);
   let n = Math.max(1, frames);
   if (n > cells) {
     if (!layoutWarned.has(src)) {
       layoutWarned.add(src);
-      console.warn(`[sprites] ${src}: frames ${n} > ${columns}x${rows} (${cells}); clamping`);
+      console.warn(`[sprites] ${kind} ${src} frames=${n} layout=${columns}x${rows}; clamping to ${cells}`);
     }
     n = cells;
   }
   return { frames: n, columns, rows };
 }
 
-function tintWithMask(src: string, pal: PaletteDef, img: CanvasImageSource, mask: CanvasImageSource): HTMLCanvasElement {
-  const key = `${src}::${pal.id}`;
+export function clearTintCache() {
+  tintCache.clear();
+}
+
+function tintWithMask(
+  skin: string,
+  src: string,
+  maskSrc: string,
+  pal: PaletteDef,
+  img: CanvasImageSource,
+  mask: CanvasImageSource,
+): HTMLCanvasElement {
+  const key = `${skin}:${src}:${maskSrc}:${pal.id}`;
   const hit = tintCache.get(key);
   if (hit) return hit;
   const w = imageWidth(img);

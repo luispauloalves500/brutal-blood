@@ -155,8 +155,8 @@ export class Match {
     this.p1.skin = man1.skin ?? "default";
     this.p2.skin = man2.skin ?? "default";
     this.sprites = [
-      new SpriteAnimator(opts.p1Data.id, opts.assets?.p1 ?? null, pal1),
-      new SpriteAnimator(opts.p2Data.id, opts.assets?.p2 ?? null, pal2),
+      new SpriteAnimator(opts.p1Data.id, opts.assets?.p1 ?? null, pal1, this.p1.skin),
+      new SpriteAnimator(opts.p2Data.id, opts.assets?.p2 ?? null, pal2, this.p2.skin),
     ];
     this.timer = opts.mode === "training" ? 999 : GAME.ROUND_TIME;
     this.onHUD = opts.onHUD;

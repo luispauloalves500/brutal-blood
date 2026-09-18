@@ -1,4 +1,4 @@
-import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips, SHIPPED_CLIPS } from "../clips";
+import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips } from "../clips";
 import { DRAVEN_PALETTES } from "../palettes";
 import type { CharacterAssetManifest } from "../types";
 
@@ -6,7 +6,7 @@ export const dravenAssets: CharacterAssetManifest = bindAvailableClips({
   id: "draven",
   portrait: "/fighters/draven.webp",
   skin: "default",
-  availableClips: [...SHIPPED_CLIPS],
+  availableClips: [],
   palettes: DRAVEN_PALETTES,
   effects: [],
   audio: [],

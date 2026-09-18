@@ -1,4 +1,4 @@
-import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips, SHIPPED_CLIPS } from "../clips";
+import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips } from "../clips";
 import { NYX_PALETTES } from "../palettes";
 import type { CharacterAssetManifest } from "../types";
 
@@ -6,7 +6,7 @@ export const nyxAssets: CharacterAssetManifest = bindAvailableClips({
   id: "nyx",
   portrait: "/fighters/nyx.webp",
   skin: "default",
-  availableClips: [...SHIPPED_CLIPS],
+  availableClips: [],
   palettes: NYX_PALETTES,
   effects: [],
   audio: [],

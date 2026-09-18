@@ -1,20 +1,23 @@
-import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips, SHIPPED_CLIPS } from "../clips";
+import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips } from "../clips";
 import { KHARON_PALETTES } from "../palettes";
 import type { CharacterAssetManifest } from "../types";
 
 /**
- * Kharon pilot. To enable a dedicated sheet: drop the WebP in
- * public/fighters/kharon/ and add the clip name to availableClips.
- * Future names: walkBack dash jumpStart fall crouch block blockLow
- * light medium heavy kickLight kickHeavy aerial throw
- * special1 special2 special3 super hit hitHeavy knockdown wakeup
- * intro taunt victory finish1 finish2 counter
+ * Kharon — grouped sheets only until dedicated WebPs exist.
+ * idle.webp / walk.webp / attack.webp / hurt.webp / jump.webp = GROUP fallback.
+ *
+ * When a dedicated file is added under public/fighters/kharon/:
+ *   light.webp        → availableClips: ["light"]
+ *   special-1.webp    → add "special1"
+ *   super.webp        → add "super"
+ *   finish-1.webp     → add "finish1"
+ * Do not list idle/walk/jump here while those files remain grouped sheets.
  */
 export const kharonAssets: CharacterAssetManifest = bindAvailableClips({
   id: "kharon",
   portrait: "/fighters/kharon.webp",
   skin: "default",
-  availableClips: [...SHIPPED_CLIPS],
+  availableClips: [],
   palettes: KHARON_PALETTES,
   effects: [],
   audio: [],

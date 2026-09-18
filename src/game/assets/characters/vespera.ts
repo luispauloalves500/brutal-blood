@@ -1,4 +1,4 @@
-import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips, SHIPPED_CLIPS } from "../clips";
+import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips } from "../clips";
 import { VESPERA_PALETTES } from "../palettes";
 import type { CharacterAssetManifest } from "../types";
 
@@ -6,7 +6,7 @@ export const vesperaAssets: CharacterAssetManifest = bindAvailableClips({
   id: "vespera",
   portrait: "/fighters/vespera.webp",
   skin: "default",
-  availableClips: [...SHIPPED_CLIPS],
+  availableClips: [],
   palettes: VESPERA_PALETTES,
   effects: [],
   audio: [],

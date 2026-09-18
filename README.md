@@ -2,7 +2,7 @@
 
 Jogo de luta 2D em HTML5 Canvas + TypeScript.
 
-Versão **0.8.2** — clips dedicados via `availableClips` + paletas para mirror match.
+Versão **0.8.3** — group sheets vs clips dedicados; paletas no mirror match.
 
 ## Modos
 
@@ -70,4 +70,4 @@ O combate roda 100% no cliente (`localStorage`). Auth/Postgres/Better Auth na pa
 
 ## Status
 
-Cada lutador tem sheets WebP em `public/fighters/<id>/` (idle, walk, attack, hurt, jump). Para ligar um clip dedicado: coloque o arquivo (`light.webp`, `super.webp`…) e adicione o nome em `availableClips`. Mirror match reusa os mesmos sheets com paleta alternativa (hue), sem duplicar arquivos.
+Sheets atuais (`idle.webp`, `walk.webp`, `attack.webp`, `hurt.webp`, `jump.webp`) são **group fallback**, não clips dedicados. `availableClips` só lista WebPs individuais reais. Para ligar um clip: arquivo na pasta + nome em `availableClips`. Mirror match reusa os mesmos sheets com paleta alternativa.

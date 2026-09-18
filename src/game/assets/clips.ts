@@ -153,12 +153,16 @@ export function dedicatedPath(id: string, name: AnimName) {
   return `/fighters/${id}/${CLIP_FILES[name]}`;
 }
 
-/** Clips that currently ship as dedicated WebP for every fighter. */
-export const SHIPPED_CLIPS: AnimName[] = ["idle", "walk", "jump"];
+/**
+ * Dedicated clips that currently exist as separate WebPs.
+ * Empty while fighters only ship grouped sheets (idle/walk/attack/hurt/jump).
+ * Add a name here AND to the character's availableClips when a real dedicated file lands.
+ */
+export const SHIPPED_CLIPS: AnimName[] = [];
 
 /**
  * Set clip.src only for names in availableClips.
- * Never overwrites an explicit src. Never invents files not listed.
+ * Never overwrites explicit src, fallbackSrc, or group sheet layout.
  */
 export function bindAvailableClips(manifest: CharacterAssetManifest): CharacterAssetManifest {
   const avail = new Set(manifest.availableClips ?? []);

@@ -42,5 +42,7 @@ export function isIdentityPalette(p: PaletteDef) {
 
 export function paletteFilter(p: PaletteDef) {
   if (isIdentityPalette(p)) return "none";
+  // Full-image palette fallback (no mask). Recolors the entire sprite including
+  // skin/weapon. Prefer maskSrc when a palette mask exists.
   return `hue-rotate(${p.hue}deg) saturate(${p.saturate}) brightness(${p.brightness})`;
 }
