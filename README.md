@@ -2,7 +2,7 @@
 
 Jogo de luta 2D em HTML5 Canvas + TypeScript.
 
-Versão **0.8.3** — group sheets vs clips dedicados; paletas no mirror match.
+Versão **0.8.5** — Kharon com kit visual dedicado (normais, especiais, Super, Blood Finish).
 
 ## Modos
 
@@ -70,4 +70,4 @@ O combate roda 100% no cliente (`localStorage`). Auth/Postgres/Better Auth na pa
 
 ## Status
 
-Sheets atuais (`idle.webp`, `walk.webp`, `attack.webp`, `hurt.webp`, `jump.webp`) são **group fallback**, não clips dedicados. `availableClips` só lista WebPs individuais reais. Para ligar um clip: arquivo na pasta + nome em `availableClips`. Mirror match reusa os mesmos sheets com paleta alternativa.
+Kharon tem clips dedicados 2×2 para idle, walk, dash, crouch, block, golpes, jump/fall, hit, knockdown, wakeup, throw, especiais, Super, vitória e Blood Finish. Nyx/Draven/Vespera ainda usam group sheets. `availableClips` só lista arquivos reais.

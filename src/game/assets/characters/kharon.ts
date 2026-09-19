@@ -2,56 +2,60 @@ import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips } from "..
 import { KHARON_PALETTES } from "../palettes";
 import type { CharacterAssetManifest } from "../types";
 
+const g2 = { columns: 2, rows: 2 } as const;
+const atk = { columns: 2, rows: 2, frameMap: [0, 0, 1, 1, 2, 3] };
+
 /**
- * Kharon — grouped sheets only until dedicated WebPs exist.
- * idle.webp / walk.webp / attack.webp / hurt.webp / jump.webp = GROUP fallback.
- *
- * When a dedicated file is added under public/fighters/kharon/:
- *   light.webp        → availableClips: ["light"]
- *   special-1.webp    → add "special1"
- *   super.webp        → add "super"
- *   finish-1.webp     → add "finish1"
- * Do not list idle/walk/jump here while those files remain grouped sheets.
+ * Kharon dedicated clips. Group fallback remains for any clip not listed:
+ * attack.webp / hurt.webp / jump.webp still ship as safety nets.
+ * walkBack uses walk.webp reversed. blockLow falls back to block.
  */
 export const kharonAssets: CharacterAssetManifest = bindAvailableClips({
   id: "kharon",
   portrait: "/fighters/kharon.webp",
   skin: "default",
-  availableClips: [],
+  availableClips: [
+    "idle", "walk", "dash", "crouch", "block",
+    "light", "medium", "heavy", "kickLight", "kickHeavy", "aerial",
+    "jumpStart", "jump", "fall",
+    "hit", "hitHeavy", "knockdown", "wakeup",
+    "throw", "special1", "special2", "special3", "super",
+    "victory", "finish1", "finish2",
+  ],
   palettes: KHARON_PALETTES,
   effects: [],
   audio: [],
   clips: bindSheets(clipMap([
-    clip("idle", 8, 8),
-    clip("walk", 8, 10),
-    clip("walkBack", 8, 8),
-    clip("dash", 6, 14),
-    clip("jumpStart", 3, 12),
-    clip("jump", 4, 8),
-    clip("fall", 3, 8),
-    clip("crouch", 3, 8),
-    clip("block", 3, 10),
-    clip("blockLow", 3, 10),
-    clip("light", 5, 14),
-    clip("medium", 6, 12),
-    clip("heavy", 8, 11),
-    clip("kickLight", 6, 12),
-    clip("kickHeavy", 6, 11),
-    clip("aerial", 6, 12),
-    clip("throw", 8, 10),
-    clip("special1", 10, 12),
-    clip("special2", 10, 12),
-    clip("special3", 12, 11),
-    clip("super", 20, 12),
-    clip("hit", 3, 10),
-    clip("hitHeavy", 5, 8),
-    clip("knockdown", 7, 8),
-    clip("wakeup", 6, 8),
-    clip("victory", 10, 8),
-    clip("finish1", 20, 10),
-    clip("finish2", 20, 10),
-    clip("intro", 8, 8),
-    clip("counter", 6, 12),
-    clip("taunt", 8, 6),
+    clip("idle", 4, 8, g2),
+    clip("walk", 4, 10, g2),
+    clip("walkBack", 4, 8, g2),
+    clip("dash", 4, 14, g2),
+    clip("jumpStart", 4, 12, g2),
+    clip("jump", 4, 8, g2),
+    clip("fall", 4, 8, g2),
+    clip("crouch", 4, 8, { ...g2, loop: true }),
+    clip("block", 4, 10, { ...g2, loop: true }),
+    clip("blockLow", 4, 10),
+    clip("light", 4, 14, atk),
+    clip("medium", 4, 12, atk),
+    clip("heavy", 4, 11, atk),
+    clip("kickLight", 4, 12, atk),
+    clip("kickHeavy", 4, 11, atk),
+    clip("aerial", 4, 12, atk),
+    clip("throw", 4, 10, atk),
+    clip("special1", 4, 12, atk),
+    clip("special2", 4, 12, atk),
+    clip("special3", 4, 11, atk),
+    clip("super", 4, 12, atk),
+    clip("hit", 4, 10, g2),
+    clip("hitHeavy", 4, 8, g2),
+    clip("knockdown", 4, 8, g2),
+    clip("wakeup", 4, 8, g2),
+    clip("victory", 4, 8, g2),
+    clip("finish1", 4, 10, atk),
+    clip("finish2", 4, 10, atk),
+    clip("intro", 4, 8),
+    clip("counter", 4, 12),
+    clip("taunt", 4, 6),
   ]), fighterSheets("kharon")),
 });

@@ -140,14 +140,31 @@ export function bindSheets(clips: Record<string, AnimClip>, sheets: Partial<Reco
 
 export function fighterSheets(id: string): Partial<Record<string, SheetBind>> {
   const p = `/fighters/${id}`;
-  return {
+  const base: Partial<Record<string, SheetBind>> = {
     idle: { src: `${p}/idle.webp`, frames: 4, columns: 2, rows: 2, fps: 8 },
     walk: { src: `${p}/walk.webp`, frames: 6, columns: 3, rows: 2, fps: 10 },
     attack: { src: `${p}/attack.webp`, frames: 6, columns: 3, rows: 2, fps: 12 },
     hurt: { src: `${p}/hurt.webp`, frames: 4, columns: 2, rows: 2, fps: 10 },
     jump: { src: `${p}/jump.webp`, frames: 4, columns: 2, rows: 2, fps: 10 },
   };
+  const override = SHEET_OVERRIDE[id];
+  if (override) {
+    for (const [group, extra] of Object.entries(override)) {
+      const cur = base[group];
+      if (cur) Object.assign(cur, extra);
+    }
+  }
+  return base;
 }
+
+/** Per-fighter group-sheet layout when dedicated files replace the grouped idle/walk. */
+const SHEET_OVERRIDE: Record<string, Partial<Record<string, Partial<SheetBind>>>> = {
+  kharon: {
+    idle: { frames: 4, columns: 2, rows: 2, fps: 8 },
+    walk: { frames: 4, columns: 2, rows: 2, fps: 10 },
+    jump: { frames: 4, columns: 2, rows: 2, fps: 10 },
+  },
+};
 
 export function dedicatedPath(id: string, name: AnimName) {
   return `/fighters/${id}/${CLIP_FILES[name]}`;
