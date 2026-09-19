@@ -2,7 +2,7 @@
 
 Jogo de luta 2D em HTML5 Canvas + TypeScript.
 
-Versão **0.8.6** — Kharon piloto: clips com mais frames, Super/Finish 16, preview no Treino.
+Versão **0.9.2** — recompensas genéricas (paleta, título, galeria, música, skin, arena, final).
 
 ## Modos
 
@@ -13,7 +13,13 @@ Versão **0.8.6** — Kharon piloto: clips com mais frames, Super/Finish 16, pre
 - **Torneio** — chave de 4, semi e final
 - **História** — campanha de 4 capítulos (Kharon, Nyx, Draven)
 
-## Lutadores
+## Progressão (v0.9)
+
+Roster de **20 slots** (5×4). 6 iniciais; 14 desbloqueáveis. Kharon, Nyx, Draven e Vespera são jogáveis. Os demais slots são placeholders até o moveset existir (`playable` separado de `unlocked`).
+
+Zerar Arcade com cada inicial, sem Continue, em Difícil+, Blood Finishes e lutas secretas liberam o elenco. Saves antigos migram sem perder progresso.
+
+Recompensas genéricas (`RewardDef`): paleta, título, skin, arena, música, galeria, final. `granted` ≠ `usable` — skin/arena EM BREVE não entram na luta. Paletas extra só aparecem depois do unlock.
 
 | Nome | Estilo |
 |---|---|

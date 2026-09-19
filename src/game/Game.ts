@@ -23,6 +23,8 @@ export type GameStart = {
   runLabel?: string;
   carry?: { health: number; meter: number; superMeter: number };
   assets?: FightAssetPack | null;
+  p1Palette?: number | string;
+  p2Palette?: number | string;
 };
 
 export class Game {
@@ -58,6 +60,8 @@ export class Game {
       runLabel: opts.runLabel,
       carry: opts.carry,
       assets: opts.assets ?? null,
+      p1Palette: opts.p1Palette,
+      p2Palette: opts.p2Palette,
     });
     this.match.onPause = opts.onPause;
     this.wireControlsTest();

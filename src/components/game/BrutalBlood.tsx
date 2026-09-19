@@ -13,8 +13,39 @@ import {
 import { GAME, DIFFICULTY_LABELS, ACTION_LABELS, DEFAULT_BINDINGS, DEFAULT_AUDIO, DEFAULT_GRAPHICS, QUALITY_PRESETS, type ActionName, type Difficulty, type QualityPreset } from "@/game/core/config";
 import { detectRenderer, recommendQuality } from "@/game/core/graphics";
 import { getSave, patchSave, bumpStat, recordMaxCombo, type Bindings } from "@/game/core/save";
-import { roster, isPlayable, playable } from "@/game/characters/roster";
+import { isPlayable, playable, standInFighter } from "@/game/characters/roster";
 import type { CharacterDef, RosterEntry } from "@/game/characters/types";
+import {
+  canSelect,
+  visibleSlots,
+  slotVisibility,
+  hintFor,
+  slotById,
+  progressSnapshot,
+  recordArcadeClear,
+  recordStoryClear,
+  recordBloodFinish,
+  recordPerfect,
+  recordSecretFight,
+  consumeUnlockCinematic,
+  consumeRewardCinematic,
+  rewardById,
+  REWARD_KIND_LABELS,
+  grantedOfKind,
+  availablePalettes,
+  equipTitle,
+  equippedTitleName,
+  equipPalette,
+  equippedPalette,
+  flushRewards,
+  catalogByKind,
+  rewardHint,
+  hasReward,
+  debugUnlockAll,
+  debugLockAll,
+  debugSimulateArcade,
+  type SecretFightDef,
+} from "@/game/progression";
 import { Input } from "@/game/input/Input";
 import { AudioManager } from "@/game/audio/AudioManager";
 import { Game } from "@/game/Game";
@@ -38,6 +69,8 @@ type Screen =
   | "credits"
   | "characters"
   | "gallery"
+  | "progress"
+  | "rewards"
   | "fight"
   | "loading";
 
@@ -49,7 +82,7 @@ type FightResults = {
   health: number;
   meter: number;
   superMeter: number;
-  next?: "arcade" | "survival" | "continue" | "tournament" | "story" | null;
+  next?: "arcade" | "survival" | "continue" | "tournament" | "story" | "progress" | null;
 };
 
 const MENU: { id: string; label: string; action: Screen | "arcade" | "versus" | "training" | "survival" | "tournament" | "story" | "soon"; soon?: boolean; icon: typeof Swords }[] = [
@@ -60,6 +93,8 @@ const MENU: { id: string; label: string; action: Screen | "arcade" | "versus" | 
   { id: "survival", label: "Survival", action: "survival", icon: Swords },
   { id: "tourney", label: "Torneio", action: "tournament", icon: Trophy },
   { id: "chars", label: "Personagens", action: "characters", icon: Users },
+  { id: "progress", label: "Progresso", action: "progress", icon: Trophy },
+  { id: "rewards", label: "Recompensas", action: "rewards", icon: Trophy },
   { id: "gallery", label: "Galeria", action: "gallery", icon: ImageIcon },
   { id: "settings", label: "Configurações", action: "settings", icon: Settings },
   { id: "credits", label: "Créditos", action: "credits", icon: BookOpen },
@@ -98,6 +133,14 @@ export function BrutalBlood() {
   const [bracket, setBracket] = useState<TourneyBracket | null>(null);
   const [storyCard, setStoryCard] = useState<{ campaign: StoryCampaign; index: number } | null>(null);
   const [storyCleared, setStoryCleared] = useState<string[]>([]);
+  const [unlockQueue, setUnlockQueue] = useState<string[]>([]);
+  const [rewardQueue, setRewardQueue] = useState<string[]>([]);
+  const [p1Palette, setP1Palette] = useState("default");
+  const [secretOffer, setSecretOffer] = useState<SecretFightDef | null>(null);
+  const [secretActive, setSecretActive] = useState<SecretFightDef | null>(null);
+  const secretRef = useRef<SecretFightDef | null>(null);
+  const [saveTick, setSaveTick] = useState(0);
+  const bumpSave = () => setSaveTick((n) => n + 1);
   const [loadProg, setLoadProg] = useState<LoadProgress>({ loaded: 0, total: 1, percent: 0, current: "", failed: [], cached: 0 });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadHint, setLoadHint] = useState("");
@@ -111,10 +154,13 @@ export function BrutalBlood() {
     winsNeeded: number;
     runLabel: string;
     carry?: { health: number; meter: number; superMeter: number };
+    p1Palette?: string;
   } | null>(null);
   const runRef = useRef({
     arcadeIndex: 0,
     continues: ARCADE_CONTINUES,
+    continuesUsed: 0,
+    campaignDifficulty: "normal" as Difficulty,
     wave: 1,
     storyIndex: 0,
     tourney: null as { round: "semi" | "final"; bracket: TourneyBracket } | null,
@@ -130,6 +176,10 @@ export function BrutalBlood() {
     setRumble(saved.rumble);
     setSurvivalBest(saved.survivalBest);
     setStoryCleared(saved.storyCleared ?? []);
+    flushRewards();
+    const after = getSave();
+    setUnlockQueue(after.pendingUnlocks ?? []);
+    setRewardQueue(after.pendingRewards ?? []);
     const input = new Input(structuredClone(saved.bindings));
     input.rumble = saved.rumble;
     input.attach();
@@ -171,7 +221,11 @@ export function BrutalBlood() {
     setArcadeIndex(0);
     setArcadeContinues(ARCADE_CONTINUES);
     setWave(1);
-    runRef.current = { arcadeIndex: 0, continues: ARCADE_CONTINUES, wave: 1, storyIndex: 0, tourney: null };
+    runRef.current = { arcadeIndex: 0, continues: ARCADE_CONTINUES, continuesUsed: 0, campaignDifficulty: difficulty, wave: 1, storyIndex: 0, tourney: null };
+    setSecretOffer(null);
+    setSecretActive(null);
+    setUnlockQueue([]);
+    setRewardQueue([]);
     setBracket(null);
     setStoryCard(null);
     setResults(null);
@@ -179,18 +233,20 @@ export function BrutalBlood() {
   };
 
   const selectFighter = (entry: RosterEntry) => {
-    if (!isPlayable(entry)) return;
+    if (!isPlayable(entry) || !canSelect(entry.id, getSave())) return;
     if (mode === "story" && !hasStory(entry.id)) return;
     audioRef.current?.uiMove();
     if (mode === "versus") {
       if (pickSlot === 1) {
         setP1(entry);
+        setP1Palette(equippedPalette(entry.id));
         setPickSlot(2);
       } else {
         setP2(entry);
       }
     } else {
       setP1(entry);
+      setP1Palette(equippedPalette(entry.id));
       const other = playable.find((f) => f.id !== entry.id) ?? playable[0];
       setP2(other);
       if (mode === "tournament") {
@@ -218,7 +274,13 @@ export function BrutalBlood() {
     let stage = stageId;
     let label = "";
     let winsNeeded = 2;
-    if (mode === "arcade") {
+    const secret = secretRef.current ?? secretActive;
+    if (secret) {
+      foe = standInFighter(secret.standInId, secret.displayName, secret.displayTitle, "#a07040");
+      diff = secret.difficulty;
+      stage = secret.stageId;
+      label = secret.intro;
+    } else if (mode === "arcade") {
       const fight = ARCADE_LADDER[idx] ?? ARCADE_LADDER[0];
       foe = arcadeOpponent(p1, fight, idx);
       diff = fight.difficulty;
@@ -258,7 +320,7 @@ export function BrutalBlood() {
     patchSave({ difficulty: diff, lastStage: stage });
     setResults(null);
     pendingFight.current = {
-      p1, p2: foe, difficulty: diff, stageId: stage, winsNeeded, runLabel: label, carry: override?.carry,
+      p1, p2: foe, difficulty: diff, stageId: stage, winsNeeded, runLabel: label, carry: override?.carry, p1Palette,
     };
     setLoadHint(p1.introLine || foe.introLine || "O sangue espera.");
     setLoadError(null);
@@ -312,6 +374,7 @@ export function BrutalBlood() {
       runLabel: pending.runLabel,
       carry: pending.carry,
       assets: pack,
+      p1Palette: pending.p1Palette,
       onHUD: setHud,
       onMatchEnd: (won) => finishMatch(won),
       onPause: (v) => {
@@ -336,20 +399,53 @@ export function BrutalBlood() {
     bumpStat(p1.id, won ? "wins" : "losses");
     if (p2) bumpStat(p2.id, won ? "losses" : "wins");
     recordMaxCombo(p1.id, combo);
+    if (match.bloodFinishDone) recordBloodFinish(p1.id);
+    for (let i = 0; i < match.perfectCount; i++) recordPerfect(p1.id);
+    bumpSave();
+    const pull = () => {
+      const s = getSave();
+      setUnlockQueue(s.pendingUnlocks ?? []);
+      setRewardQueue(s.pendingRewards ?? []);
+      return (s.pendingUnlocks?.length ?? 0) + (s.pendingRewards?.length ?? 0);
+    };
     const snap = {
       maxCombo: combo,
       health: match.p1.health,
       meter: match.p1.meter,
       superMeter: match.p1.superMeter,
     };
+    const secret = secretRef.current ?? secretActive;
+    if (secret) {
+      const out = recordSecretFight(secret.id, won);
+      bumpSave();
+      secretRef.current = null;
+      setSecretActive(null);
+      setSecretOffer(null);
+      setUnlockQueue(out.unlocks);
+      setRewardQueue(out.rewards);
+      setResults({
+        won,
+        title: won ? secret.displayName : "DERROTA",
+        subtitle: won ? secret.winLine : secret.loseLine,
+        ...snap,
+        next: (out.unlocks.length + out.rewards.length) ? "progress" : null,
+      });
+      return;
+    }
     if (mode === "arcade") {
       const idx = runRef.current.arcadeIndex;
       const continues = runRef.current.continues;
       if (won) {
         const last = idx >= ARCADE_LADDER.length - 1;
         if (last) {
-          patchSave({ arcadeCleared: true });
-          setResults({ won: true, title: "ARCADE CLEAR", subtitle: "O chefe caiu. O sangue é seu.", ...snap, next: null });
+          const out = recordArcadeClear(p1.id, {
+            difficulty: runRef.current.campaignDifficulty,
+            noContinue: runRef.current.continuesUsed === 0,
+          });
+          bumpSave();
+          pull();
+          setSecretOffer(out.secretFight);
+          setResults({ won: true, title: "ARCADE CLEAR", subtitle: "O chefe caiu. O sangue é seu.", ...snap, next: "progress" });
         } else {
           const nxt = ARCADE_LADDER[idx + 1];
           setResults({ won: true, title: "VITÓRIA", subtitle: `Próximo: ${nxt.label} — ${DIFFICULTY_LABELS[nxt.difficulty]}`, ...snap, next: "arcade" });
@@ -406,19 +502,22 @@ export function BrutalBlood() {
       } else if (won) {
         const cleared = Array.from(new Set([...storyCleared, p1.id]));
         setStoryCleared(cleared);
-        patchSave({ storyCleared: cleared });
-        setResults({ won: true, title: camp.title, subtitle: camp.ending, ...snap, next: null });
+        const out = recordStoryClear(p1.id);
+        bumpSave();
+        pull();
+        setResults({ won: true, title: camp.title, subtitle: camp.ending, ...snap, next: (out.unlocks.length + out.rewards.length) ? "progress" : null });
       } else {
         setResults({ won: false, title: "FIM", subtitle: "A história acaba aqui. O sangue não reescreve o capítulo.", ...snap, next: null });
       }
       return;
     }
+    const pending = pull();
     setResults({
       won,
       title: won ? "VITÓRIA" : "DERROTA",
       subtitle: won ? "Mais um nome na lista." : "A sentença foi executada.",
       ...snap,
-      next: null,
+      next: pending ? "progress" : null,
     });
   };
 
@@ -433,8 +532,13 @@ export function BrutalBlood() {
     }
     if (results.next === "continue") {
       runRef.current.continues -= 1;
+      runRef.current.continuesUsed += 1;
       setArcadeContinues(runRef.current.continues);
       startFight({ arcadeIndex: runRef.current.arcadeIndex });
+      return;
+    }
+    if (results.next === "progress") {
+      quitTo("menu");
       return;
     }
     if (results.next === "survival") {
@@ -528,7 +632,7 @@ export function BrutalBlood() {
       {screen === "boot" && (
         <section className="bb-screen items-center justify-center">
           <button type="button" className="flex h-full w-full flex-col items-center justify-center gap-6" onClick={unlock}>
-            <Logo />
+            <Logo title={equippedTitleName()} />
             <p className="bb-eyebrow">Toque para entrar na arena</p>
           </button>
         </section>
@@ -555,7 +659,7 @@ export function BrutalBlood() {
           onBack={() => nav("menu")}
           onPick={selectFighter}
           onSlot={setPickSlot}
-          onDiff={(d) => { setDifficulty(d); patchSave({ difficulty: d }); }}
+          onDiff={(d) => { setDifficulty(d); runRef.current.campaignDifficulty = d; patchSave({ difficulty: d }); }}
           onStage={setStageId}
           onStart={mode === "story" ? () => {
             if (!p1) return;
@@ -566,6 +670,9 @@ export function BrutalBlood() {
           survivalBest={survivalBest}
           bracket={bracket}
           storyCleared={storyCleared}
+          saveTick={saveTick}
+          p1Palette={p1Palette}
+          onPalette={(id) => { setP1Palette(id); if (p1) equipPalette(p1.id, id); }}
         />
       )}
 
@@ -617,29 +724,19 @@ export function BrutalBlood() {
       )}
 
       {screen === "characters" && (
-        <SimpleBack title="Personagens" onBack={() => nav("menu")}>
-          <div className="grid max-w-5xl gap-4 sm:grid-cols-2">
-            {playable.map((f) => (
-              <article key={f.id} className="bb-panel overflow-hidden">
-                <div className="grid grid-cols-[8rem_1fr] gap-4 p-4">
-                  <img src={f.portrait} alt={f.name} className="h-36 w-full object-cover object-top" crossOrigin="anonymous" />
-                  <div>
-                    <h3 className="font-display text-2xl tracking-widest">{f.name}</h3>
-                    <p className="text-sm text-ember">{f.title}</p>
-                    <p className="mt-2 text-sm text-pretty text-mute">{f.lore}</p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </SimpleBack>
+        <CharactersView onBack={() => nav("menu")} saveTick={saveTick} />
+      )}
+
+      {screen === "progress" && (
+        <ProgressView onBack={() => nav("menu")} saveTick={saveTick} />
+      )}
+
+      {screen === "rewards" && (
+        <RewardsView onBack={() => nav("menu")} saveTick={saveTick} />
       )}
 
       {screen === "gallery" && (
-        <SimpleBack title="Galeria" onBack={() => nav("menu")}>
-          <p className="bb-eyebrow">Em desenvolvimento</p>
-          <p className="mt-4 max-w-md text-mute">Retratos, finais e arenas serão exibidos aqui conforme o elenco crescer.</p>
-        </SimpleBack>
+        <GalleryView onBack={() => nav("menu")} saveTick={saveTick} />
       )}
 
       <section
@@ -715,6 +812,41 @@ export function BrutalBlood() {
         />
       )}
 
+      {secretOffer && (
+        <SecretOfferView
+          fight={secretOffer}
+          onAccept={() => {
+            secretRef.current = secretOffer;
+            setSecretActive(secretOffer);
+            setSecretOffer(null);
+            startFight();
+          }}
+          onSkip={() => setSecretOffer(null)}
+        />
+      )}
+
+      {!secretOffer && unlockQueue[0] && screen !== "boot" && (
+        <UnlockView
+          id={unlockQueue[0]}
+          onNext={() => {
+            consumeUnlockCinematic(unlockQueue[0]);
+            setUnlockQueue((q) => q.slice(1));
+            bumpSave();
+          }}
+        />
+      )}
+
+      {!secretOffer && !unlockQueue[0] && rewardQueue[0] && screen !== "boot" && (
+        <RewardUnlockView
+          id={rewardQueue[0]}
+          onNext={() => {
+            consumeRewardCinematic(rewardQueue[0]);
+            setRewardQueue((q) => q.slice(1));
+            bumpSave();
+          }}
+        />
+      )}
+
       {toast && (
         <Toast text={toast} onDone={() => setToast(null)} />
       )}
@@ -722,12 +854,13 @@ export function BrutalBlood() {
   );
 }
 
-function Logo() {
+function Logo({ title }: { title?: string | null }) {
   return (
     <div className="text-center">
       <div className="bb-eyebrow">Fighting game</div>
       <h1 className="bb-title text-[clamp(4rem,14vw,8rem)] text-bone" style={{ textShadow: "0 0 40px #b4152266" }}>BRUTAL</h1>
       <h2 className="font-display -mt-2 text-[clamp(1.6rem,5vw,3rem)] tracking-[0.42em] text-blood">BLOOD</h2>
+      {title && <p className="mt-2 text-xs tracking-[0.28em] text-ember">{title}</p>}
     </div>
   );
 }
@@ -763,7 +896,7 @@ function MenuView({ onAction }: { onAction: (a: (typeof MENU)[number]["action"],
   return (
     <section className="bb-screen items-center justify-center px-4 py-8">
       <div className="bb-panel relative z-10 w-full max-w-md px-8 py-10">
-        <Logo />
+        <Logo title={equippedTitleName()} />
         <p className="mx-auto mt-4 max-w-sm text-pretty text-center text-sm text-mute">
           Entre na arena. Domine seu estilo. Sobreviva ao combate.
         </p>
@@ -798,6 +931,9 @@ function SelectView(props: {
   survivalBest: number;
   bracket: TourneyBracket | null;
   storyCleared: string[];
+  saveTick: number;
+  p1Palette: string;
+  onPalette: (id: string) => void;
   onBack: () => void;
   onPick: (e: RosterEntry) => void;
   onSlot: (s: 1 | 2) => void;
@@ -807,6 +943,9 @@ function SelectView(props: {
 }) {
   const selected = props.pickSlot === 1 ? props.p1 : props.p2;
   const ready = props.mode === "versus" ? !!(props.p1 && props.p2) : !!props.p1;
+  const save = getSave();
+  const slots = visibleSlots(save);
+  void props.saveTick;
   return (
     <section className="bb-screen overflow-auto px-4 py-6">
       <header className="mx-auto flex w-full max-w-6xl items-center gap-4">
@@ -821,24 +960,32 @@ function SelectView(props: {
         </div>
       </header>
       <div className="mx-auto mt-6 grid w-full max-w-6xl gap-6 lg:grid-cols-[1fr_18rem]">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {roster.map((f) => {
-            const locked = !isPlayable(f) || (props.mode === "story" && isPlayable(f) && !hasStory(f.id));
-            const sel = (props.p1?.id === f.id) || (props.p2?.id === f.id);
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {slots.map((slot) => {
+            const vis = slotVisibility(slot.id, save);
+            const selectable = canSelect(slot.id, save) && !(props.mode === "story" && !hasStory(slot.id));
+            const live = playable.find((p) => p.id === slot.id);
+            const sel = (props.p1?.id === slot.id) || (props.p2?.id === slot.id);
+            const secret = vis === "secret";
+            const label = vis === "unlocked" || slot.initiallyUnlocked ? slot.name : secret ? "???" : slot.name;
+            const status = !selectable
+              ? (vis === "unlocked" && slot.comingSoon ? "EM BREVE" : secret ? "???" : "BLOQUEADO")
+              : props.mode === "story" && props.storyCleared.includes(slot.id) ? "COMPLETO" : slot.title;
             return (
-              <button key={f.id} type="button" disabled={locked}
-                onClick={() => props.onPick(f)}
-                className={`bb-panel relative min-h-48 overflow-hidden p-3 text-left ${sel ? "ring-2 ring-blood" : ""} ${locked ? "opacity-30" : ""}`}>
-                {isPlayable(f) && f.portrait ? (
-                  <img src={f.portrait} alt="" className="absolute inset-0 h-full w-full object-cover object-top opacity-80" crossOrigin="anonymous" />
+              <button key={slot.id} type="button" disabled={!selectable}
+                onClick={() => { if (live) props.onPick(live); }}
+                className={`bb-panel relative min-h-28 overflow-hidden p-2 text-left sm:min-h-36 ${sel ? "ring-2 ring-blood" : ""} ${!selectable ? "opacity-40" : ""}`}>
+                {selectable && live?.portrait ? (
+                  <img src={live.portrait} alt="" className="absolute inset-0 h-full w-full object-cover object-top opacity-80" crossOrigin="anonymous" />
                 ) : (
-                  <div className="absolute inset-0 bg-panel-2" />
+                  <div className="absolute inset-0 bg-panel-2" style={{ background: `radial-gradient(circle at 40% 30%, ${slot.color}66, #0a0708)` }} />
+                )}
+                {!selectable && (
+                  <div className="absolute right-2 top-2 text-[0.65rem] tracking-widest text-ember">🔒</div>
                 )}
                 <div className="relative">
-                  <div className="text-[0.6rem] tracking-widest text-ember">
-                    {locked ? (isPlayable(f) ? "SEM CAMPANHA" : "BLOQUEADO") : props.mode === "story" && props.storyCleared.includes(f.id) ? "COMPLETO" : f.title}
-                  </div>
-                  <h3 className="font-display text-xl tracking-widest">{f.name}</h3>
+                  <div className="text-[0.55rem] tracking-widest text-ember">{status}</div>
+                  <h3 className="font-display text-lg tracking-widest">{label}</h3>
                 </div>
               </button>
             );
@@ -862,11 +1009,23 @@ function SelectView(props: {
               <Stat label="Defesa" v={selected.ratings.defense} />
               <Stat label="Alcance" v={selected.ratings.range} />
               <Stat label="Uso" v={(selected.difficulty ?? 3) * 2} />
+              {props.pickSlot === 1 && availablePalettes(selected.id).length > 1 && (
+                <div className="mt-3">
+                  <p className="text-[0.65rem] tracking-widest text-mute">Paleta</p>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {availablePalettes(selected.id).map((p) => (
+                      <button key={p.id} type="button"
+                        className={`border px-2 py-1 text-[0.65rem] tracking-widest ${props.p1Palette === p.id ? "border-blood text-ember" : "border-line text-mute"}`}
+                        onClick={() => props.onPalette(p.id)}>{p.id}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <p className="mt-6 text-sm text-mute">Selecione um lutador</p>
           )}
-          {props.mode !== "versus" && props.mode !== "arcade" && props.mode !== "survival" && props.mode !== "tournament" && props.mode !== "story" && (
+          {(props.mode === "versus" || props.mode === "training" || props.mode === "arcade") && (
             <label className="mt-4 block text-xs tracking-widest text-mute">
               Dificuldade
               <select className="mt-1 w-full border border-line bg-ink p-2 text-bone" value={props.difficulty}
@@ -1077,6 +1236,7 @@ function ResultsOverlay(props: {
     r.next === "continue" ? "Continuar" :
     r.next === "tournament" ? "Ir à final" :
     r.next === "story" ? "Próximo capítulo" :
+    r.next === "progress" ? "Continuar" :
     null;
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-ink/75">
@@ -1127,6 +1287,228 @@ function StoryCard(props: {
         </div>
       </div>
     </div>
+  );
+}
+
+function RewardUnlockView(props: { id: string; onNext: () => void }) {
+  const reward = rewardById(props.id);
+  if (!reward) return null;
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-ink/85">
+      <div className="bb-panel w-[min(440px,92vw)] p-6 text-center">
+        <p className="bb-eyebrow">{REWARD_KIND_LABELS[reward.kind]}</p>
+        <h2 className="font-display mt-2 text-3xl tracking-widest">RECOMPENSA</h2>
+        <div className="mx-auto mt-5 h-28 w-28" style={{ background: `radial-gradient(circle, ${reward.color ?? "#c9202b"}, #14080a)` }} />
+        <h3 className="font-display mt-4 text-2xl tracking-widest">{reward.name}</h3>
+        <p className="text-sm text-ember">{reward.subtitle}</p>
+        <p className="mt-2 text-sm text-pretty text-mute">{reward.description}</p>
+        {reward.comingSoon && <p className="mt-2 text-xs tracking-widest text-mute">EM BREVE</p>}
+        {reward.kind === "title" && (
+          <button type="button" className="bb-btn mt-4 w-full" onClick={() => equipTitle(reward.id)}>Equipar título</button>
+        )}
+        <button type="button" className="bb-btn bb-btn-primary mt-3 w-full" onClick={props.onNext}>Continuar</button>
+      </div>
+    </div>
+  );
+}
+
+function UnlockView(props: { id: string; onNext: () => void }) {
+  const slot = slotById(props.id);
+  if (!slot) return null;
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-ink/85">
+      <div className="bb-panel w-[min(440px,92vw)] p-6 text-center">
+        <p className="bb-eyebrow">Novo lutador</p>
+        <h2 className="font-display mt-2 text-3xl tracking-widest">DESBLOQUEADO</h2>
+        <div className="mx-auto mt-5 h-36 w-36" style={{ background: `radial-gradient(circle, ${slot.color}, #14080a)` }} />
+        <h3 className="font-display mt-4 text-2xl tracking-widest">{slot.name}</h3>
+        <p className="text-sm text-ember">{slot.title}</p>
+        {slot.comingSoon && <p className="mt-2 text-xs tracking-widest text-mute">EM BREVE NA ARENA</p>}
+        <button type="button" className="bb-btn bb-btn-primary mt-6 w-full" onClick={props.onNext}>Continuar</button>
+      </div>
+    </div>
+  );
+}
+
+function SecretOfferView(props: { fight: SecretFightDef; onAccept: () => void; onSkip: () => void }) {
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-ink/90">
+      <div className="bb-panel w-[min(480px,92vw)] p-6 text-center">
+        <p className="bb-eyebrow">Encontro secreto</p>
+        <h2 className="font-display mt-3 text-3xl tracking-widest">{props.fight.intro}</h2>
+        <p className="mt-4 text-sm text-ember">{props.fight.displayName} — {props.fight.displayTitle}</p>
+        <div className="mt-6 grid gap-2">
+          <button type="button" className="bb-btn bb-btn-primary" onClick={props.onAccept}>Aceitar o desafio</button>
+          <button type="button" className="bb-btn" onClick={props.onSkip}>Recusar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProgressView(props: { onBack: () => void; saveTick: number }) {
+  void props.saveTick;
+  const snap = progressSnapshot();
+  const dev = import.meta.env.DEV;
+  return (
+    <SimpleBack title="Progresso" onBack={props.onBack}>
+      <div className="w-full max-w-xl">
+        <p className="font-display text-4xl tracking-widest text-blood">{snap.percent}%</p>
+        <p className="mt-1 text-sm text-mute">PROGRESSO TOTAL</p>
+        <div className="mt-6 grid gap-3 text-sm">
+          <p>Lutadores: {snap.unlocked} / {snap.total}</p>
+          <p>Arcade concluído: {snap.arcadeClears}</p>
+          <p>Blood Finishes: {snap.bloodFinishes} / 20</p>
+          <p>Desafiantes secretos: {snap.secretWins}</p>
+          <p>Maior dificuldade: {snap.highestDifficulty ? DIFFICULTY_LABELS[snap.highestDifficulty] : "—"}</p>
+          <p>Recompensas: {snap.rewards} / {snap.rewardTotal}</p>
+        </div>
+        <div className="mt-6">
+          <p className="bb-eyebrow">Títulos</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {grantedOfKind("title").map((t) => (
+              <button key={t.id} type="button"
+                className={`border px-2 py-1 text-xs tracking-widest ${getSave().equippedTitle === t.id ? "border-blood text-ember" : "border-line text-mute"}`}
+                onClick={() => equipTitle(getSave().equippedTitle === t.id ? null : t.id)}>{t.name}</button>
+            ))}
+            {grantedOfKind("title").length === 0 && <p className="text-xs text-mute">Nenhum título ainda.</p>}
+          </div>
+        </div>
+        {dev && (
+          <div className="mt-8 border border-line p-4">
+            <p className="bb-eyebrow">Debug</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <button type="button" className="bb-btn" onClick={() => { debugUnlockAll(); location.reload(); }}>Desbloquear todos</button>
+              <button type="button" className="bb-btn" onClick={() => { debugLockAll(); location.reload(); }}>Resetar progressão</button>
+              <button type="button" className="bb-btn" onClick={() => { debugSimulateArcade("kharon", "hard", true); location.reload(); }}>Simular Arcade Kharon</button>
+              <button type="button" className="bb-btn" onClick={() => { const s = getSave(); patchSave({ bloodFinishCount: (s.bloodFinishCount ?? 0) + 5 }); flushRewards(); location.reload(); }}>+5 Blood Finishes</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </SimpleBack>
+  );
+}
+
+function CharactersView(props: { onBack: () => void; saveTick: number }) {
+  void props.saveTick;
+  const save = getSave();
+  return (
+    <SimpleBack title="Personagens" onBack={props.onBack}>
+      <div className="grid w-full max-w-5xl gap-4 sm:grid-cols-2">
+        {visibleSlots(save).map((slot) => {
+          const vis = slotVisibility(slot.id, save);
+          const live = playable.find((p) => p.id === slot.id);
+          const prog = save.characterProgress[slot.id];
+          const unlocked = vis === "unlocked" || slot.initiallyUnlocked && (save.unlockedCharacters ?? []).includes(slot.id);
+          const name = vis === "secret" && !unlocked ? "???" : slot.name;
+          return (
+            <article key={slot.id} className="bb-panel overflow-hidden p-4">
+              <div className="flex gap-4">
+                {live?.portrait && unlocked ? (
+                  <img src={live.portrait} alt="" className="h-28 w-24 object-cover object-top" crossOrigin="anonymous" />
+                ) : (
+                  <div className="h-28 w-24" style={{ background: slot.color }} />
+                )}
+                <div className="min-w-0">
+                  <h3 className="font-display text-2xl tracking-widest">{name}</h3>
+                  <p className="text-sm text-ember">{unlocked ? slot.title : hintFor(slot.id, save)}</p>
+                  {unlocked && live && (
+                    <p className="mt-2 text-sm text-pretty text-mute">{live.lore}</p>
+                  )}
+                  {unlocked && (
+                    <p className="mt-2 text-xs tracking-widest text-mute">
+                      Arcade: {prog?.arcadeCleared ? "CONCLUÍDO" : "—"} · História: {prog?.storyCleared ? "CONCLUÍDA" : "—"}
+                      <br />
+                      Vitórias: {prog?.wins ?? 0} · Derrotas: {prog?.losses ?? 0} · Combo: {prog?.maxCombo ?? 0}
+                      <br />
+                      Blood Finishes: {prog?.bloodFinishes ?? 0} · Perfects: {prog?.perfects ?? 0}
+                      {prog?.highestDifficulty ? ` · ${DIFFICULTY_LABELS[prog.highestDifficulty]}` : ""}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </SimpleBack>
+  );
+}
+
+function GalleryView(props: { onBack: () => void; saveTick: number }) {
+  void props.saveTick;
+  const save = getSave();
+  const unlocked = visibleSlots(save).filter((s) => (save.unlockedCharacters ?? []).includes(s.id));
+  return (
+    <SimpleBack title="Galeria" onBack={props.onBack}>
+      <p className="bb-eyebrow">Elenco revelado</p>
+      <div className="mt-4 grid w-full max-w-5xl grid-cols-2 gap-3 sm:grid-cols-4">
+        {unlocked.map((slot) => {
+          const live = playable.find((p) => p.id === slot.id);
+          return (
+            <figure key={slot.id} className="bb-panel overflow-hidden">
+              {live?.portrait ? (
+                <img src={live.portrait} alt={slot.name} className="h-40 w-full object-cover object-top" crossOrigin="anonymous" />
+              ) : (
+                <div className="h-40" style={{ background: slot.color }} />
+              )}
+              <figcaption className="p-2 font-display tracking-widest">{slot.name}</figcaption>
+            </figure>
+          );
+        })}
+      </div>
+      <p className="bb-eyebrow mt-8">Recompensas</p>
+      <div className="mt-4 grid w-full max-w-5xl gap-3 sm:grid-cols-2">
+        {(["ending", "gallery", "music", "palette", "skin", "stage"] as const).flatMap((kind) => grantedOfKind(kind)).map((r) => (
+          <article key={r.id} className="bb-panel p-3">
+            <p className="text-[0.65rem] tracking-widest text-ember">{REWARD_KIND_LABELS[r.kind]}</p>
+            <h3 className="font-display tracking-widest">{r.name}</h3>
+            <p className="text-sm text-mute">{r.description}</p>
+          </article>
+        ))}
+      </div>
+    </SimpleBack>
+  );
+}
+
+function RewardsView(props: { onBack: () => void; saveTick: number }) {
+  void props.saveTick;
+  const save = getSave();
+  const groups = catalogByKind();
+  const kinds = (["title", "palette", "ending", "gallery", "music", "skin", "stage"] as const);
+  return (
+    <SimpleBack title="Recompensas" onBack={props.onBack}>
+      <p className="max-w-xl text-sm text-mute">Paletas, títulos, finais e colecionáveis. Conquistado não significa jogável — skins e arenas novas entram quando o asset existir.</p>
+      <div className="mt-6 grid w-full max-w-5xl gap-6">
+        {kinds.map((kind) => (
+          <section key={kind}>
+            <p className="bb-eyebrow">{REWARD_KIND_LABELS[kind]}</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {groups[kind].map((r) => {
+                const owned = hasReward(r.id, save);
+                return (
+                  <article key={r.id} className={`bb-panel p-3 ${owned ? "" : "opacity-50"}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-display tracking-widest">{owned || !r.unlock?.hiddenDescription ? r.name : "???"}</h3>
+                        <p className="text-xs text-ember">{r.subtitle}</p>
+                      </div>
+                      <span className="text-[0.6rem] tracking-widest text-mute">{owned ? (r.comingSoon ? "EM BREVE" : "OK") : "🔒"}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-mute">{owned ? r.description : rewardHint(r, save)}</p>
+                    {owned && r.kind === "title" && (
+                      <button type="button" className="bb-btn mt-2 py-1 text-xs"
+                        onClick={() => equipTitle(save.equippedTitle === r.id ? null : r.id)}>{save.equippedTitle === r.id ? "Equipado" : "Equipar"}</button>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
+    </SimpleBack>
   );
 }
 

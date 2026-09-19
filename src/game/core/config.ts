@@ -1,6 +1,6 @@
 /** Single global config. Never redeclare DEBUG or these constants in other files. */
 export const GAME = {
-  VERSION: "0.8.6",
+  VERSION: "0.9.2",
   WIDTH: 1280,
   HEIGHT: 720,
   FPS: 60,
@@ -17,7 +17,7 @@ export const GAME = {
   CLASH_FRAMES: 8,
   TECH_FRAMES: 7,
   SAVE_KEY: "brutal-blood-save",
-  SAVE_VERSION: 5,
+  SAVE_VERSION: 8,
 } as const;
 
 export const DEBUG = {
@@ -43,6 +43,25 @@ export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   brutal: "Brutal",
   nightmare: "Pesadelo",
 };
+
+export const DIFFICULTY_RANK: Record<Difficulty, number> = {
+  veryEasy: 0,
+  easy: 1,
+  normal: 2,
+  hard: 3,
+  brutal: 4,
+  nightmare: 5,
+};
+
+export function difficultyAtLeast(current: Difficulty | null | undefined, min: Difficulty) {
+  if (!current) return false;
+  return DIFFICULTY_RANK[current] >= DIFFICULTY_RANK[min];
+}
+
+export function higherDifficulty(a: Difficulty | null | undefined, b: Difficulty): Difficulty {
+  if (!a) return b;
+  return DIFFICULTY_RANK[a] >= DIFFICULTY_RANK[b] ? a : b;
+}
 
 export type QualityPreset = "low" | "medium" | "high" | "ultra";
 export type AccelMode = "auto" | "on" | "off";

@@ -16,6 +16,7 @@ import { HitStop, computeHitstop, HITSTOP } from "./hitstop";
 import type { FightAssetPack } from "../assets";
 import { getCharacterAssets } from "../assets/manifests";
 import { paletteAt } from "../assets/palettes";
+import { availablePalettes } from "../progression/rewards";
 import { comboScale, stunScale, COMBO_LIMIT, onHitAdv, onBlockAdv } from "./frameData";
 
 export type MatchMode = "arcade" | "versus" | "training" | "survival" | "tournament" | "story";
@@ -99,6 +100,8 @@ export class Match {
   finisher: Fighter | null = null;
   victim: Fighter | null = null;
   finishName = "";
+  bloodFinishDone = false;
+  perfectCount = 0;
   time = 0;
   buf1 = new CommandBuffer();
   buf2 = new CommandBuffer();
@@ -149,8 +152,8 @@ export class Match {
     const man1 = getCharacterAssets(opts.p1Data.id);
     const man2 = getCharacterAssets(opts.p2Data.id);
     const mirror = opts.p1Data.id === opts.p2Data.id;
-    const pal1 = resolvePalette(man1.palettes, opts.p1Palette, 0);
-    const pal2 = resolvePalette(man2.palettes, opts.p2Palette, mirror ? 1 : 0);
+    const pal1 = resolvePalette(availablePalettes(opts.p1Data.id), opts.p1Palette, 0);
+    const pal2 = resolvePalette(availablePalettes(opts.p2Data.id), opts.p2Palette, mirror ? 1 : 0);
     this.p1.paletteId = pal1.id;
     this.p2.paletteId = pal2.id;
     this.p1.skin = man1.skin ?? "default";
@@ -676,6 +679,7 @@ export class Match {
     const loser = winner === this.p1 ? this.p2 : winner === this.p2 ? this.p1 : null;
     if (winner) winner.roundWins++;
     const perfect = winner && winner.health >= winner.maxHealth && !timeover;
+    if (perfect && winner === this.p1) this.perfectCount += 1;
     if (double) this.message = "DOUBLE KO";
     else if (timeover) this.message = "TIME OVER";
     else if (perfect) this.message = "PERFECT";
@@ -736,6 +740,7 @@ export class Match {
 
   private playFinish(name: string) {
     this.finishName = name;
+    this.bloodFinishDone = true;
     this.message = name.toUpperCase();
     this.hitStop.trigger({
       frames: HITSTOP.finish,
