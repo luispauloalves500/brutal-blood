@@ -82,7 +82,7 @@ export function BrutalBlood() {
   const [bindings, setBindings] = useState<Bindings>(DEFAULT_BINDINGS);
   const [rumble, setRumble] = useState(true);
   const [remap, setRemap] = useState<{ slot: "p1" | "p2"; action: ActionName } | null>(null);
-  const [training, setTraining] = useState<TrainingOpts>({ infiniteHp: true, infiniteMeter: true, showHitboxes: false, showFrameData: true, cpu: "stand" });
+  const [training, setTraining] = useState<TrainingOpts>({ infiniteHp: true, infiniteMeter: true, showHitboxes: false, showFrameData: true, cpu: "stand", previewClip: "" });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<Game | null>(null);
   const inputRef = useRef<Input | null>(null);
@@ -1227,6 +1227,14 @@ function MoveList({ fighter, onBack }: { fighter: CharacterDef; onBack: () => vo
   );
 }
 
+const CLIP_PREVIEW = [
+  "idle", "walk", "walkBack", "dash", "jumpStart", "jump", "fall", "crouch",
+  "block", "blockLow", "light", "medium", "heavy", "kickLight", "kickHeavy",
+  "aerial", "throw", "special1", "special2", "special3", "super",
+  "hit", "hitHeavy", "knockdown", "wakeup", "victory", "intro", "counter", "taunt",
+  "finish1", "finish2",
+];
+
 function TrainingDock(props: {
   training: TrainingOpts;
   damage: number;
@@ -1254,6 +1262,14 @@ function TrainingDock(props: {
       <label className="mt-1 flex justify-between">Energia infinita <input type="checkbox" checked={t.infiniteMeter} onChange={(e) => props.onChange({ ...t, infiniteMeter: e.target.checked })} /></label>
       <label className="mt-1 flex justify-between">Hitboxes <input type="checkbox" checked={t.showHitboxes} onChange={(e) => props.onChange({ ...t, showHitboxes: e.target.checked })} /></label>
       <label className="mt-1 flex justify-between">Frame data <input type="checkbox" checked={t.showFrameData !== false} onChange={(e) => props.onChange({ ...t, showFrameData: e.target.checked })} /></label>
+      <label className="mt-2 block text-mute">
+        Clip P1
+        <select className="mt-1 w-full border border-line bg-ink p-1 text-bone" value={t.previewClip || ""}
+          onChange={(e) => props.onChange({ ...t, previewClip: e.target.value })}>
+          <option value="">(gameplay)</option>
+          {CLIP_PREVIEW.map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
+      </label>
       <label className="mt-2 block text-mute">
         CPU
         <select className="mt-1 w-full border border-line bg-ink p-1 text-bone" value={t.cpu}

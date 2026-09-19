@@ -62,6 +62,7 @@ export type TrainingOpts = {
   showHitboxes: boolean;
   showFrameData: boolean;
   cpu: TrainingCpu;
+  previewClip?: string;
 };
 
 type Proj = {
@@ -833,7 +834,9 @@ export class Match {
     c.save();
     this.camera.apply(c);
     drawStage(c, this.stage, this.time, this.camera.x, this.gfx.stageFx);
-    drawFighter(c, this.p1, this.sprites[0], this.gfx.shadows, this.gfx.debugSprites);
+    const preview = this.mode === "training" ? this.training.previewClip : undefined;
+    const debug = this.gfx.debugSprites || !!preview;
+    drawFighter(c, this.p1, this.sprites[0], this.gfx.shadows, debug, preview);
     drawFighter(c, this.p2, this.sprites[1], this.gfx.shadows, this.gfx.debugSprites);
     if (this.hitStop.frozen && this.hitStop.fx && this.hitStop.victim) {
       c.save();

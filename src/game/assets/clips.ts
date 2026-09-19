@@ -3,6 +3,7 @@ import type { AnimClip, AnimName, CharacterAssetManifest } from "./types";
 const NO_LOOP = new Set<AnimName>([
   "jumpStart", "hit", "hitHeavy", "knockdown", "wakeup", "victory",
   "super", "finish1", "finish2", "intro", "throw",
+  "special1", "special2", "special3", "counter", "taunt", "dash",
 ]);
 
 /** Filename per clip under /fighters/<id>/. Dedicated files are optional. */
@@ -160,9 +161,9 @@ export function fighterSheets(id: string): Partial<Record<string, SheetBind>> {
 /** Per-fighter group-sheet layout when dedicated files replace the grouped idle/walk. */
 const SHEET_OVERRIDE: Record<string, Partial<Record<string, Partial<SheetBind>>>> = {
   kharon: {
-    idle: { frames: 4, columns: 2, rows: 2, fps: 8 },
-    walk: { frames: 4, columns: 2, rows: 2, fps: 10 },
-    jump: { frames: 4, columns: 2, rows: 2, fps: 10 },
+    idle: { frames: 8, columns: 4, rows: 2, fps: 10 },
+    walk: { frames: 8, columns: 4, rows: 2, fps: 10 },
+    jump: { frames: 6, columns: 3, rows: 2, fps: 10 },
   },
 };
 

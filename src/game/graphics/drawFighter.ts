@@ -1,8 +1,8 @@
 import type { Fighter } from "../combat/Fighter";
 import type { SpriteAnimator } from "./SpriteAnimator";
 
-export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, sprites: SpriteAnimator | null, shadows: boolean, debug = false) {
-  const anim = mapAnim(f);
+export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, sprites: SpriteAnimator | null, shadows: boolean, debug = false, forceAnim?: string) {
+  const anim = forceAnim || mapAnim(f);
   if (shadows) drawGroundShadow(ctx, f);
   const drawn = sprites?.draw(ctx, anim, f.x, f.y, f.w, f.h, f.facing, {
     time: f.stateTime,

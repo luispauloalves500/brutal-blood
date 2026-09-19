@@ -2,7 +2,7 @@
 
 Jogo de luta 2D em HTML5 Canvas + TypeScript.
 
-Versão **0.8.5** — Kharon com kit visual dedicado (normais, especiais, Super, Blood Finish).
+Versão **0.8.6** — Kharon piloto: clips com mais frames, Super/Finish 16, preview no Treino.
 
 ## Modos
 
@@ -70,4 +70,4 @@ O combate roda 100% no cliente (`localStorage`). Auth/Postgres/Better Auth na pa
 
 ## Status
 
-Kharon tem clips dedicados 2×2 para idle, walk, dash, crouch, block, golpes, jump/fall, hit, knockdown, wakeup, throw, especiais, Super, vitória e Blood Finish. Nyx/Draven/Vespera ainda usam group sheets. `availableClips` só lista arquivos reais.
+Kharon usa sheets dedicados com 6–16 frames (idle/walk 8, Super e Blood Finish 16). No Treino, o painel **Clip P1** reproduz cada animação. Nyx/Draven/Vespera ainda usam group sheets.
