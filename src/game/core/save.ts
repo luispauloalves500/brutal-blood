@@ -13,6 +13,8 @@ import {
 import type { CharacterProgress } from "../progression/types";
 import { INITIAL_IDS } from "../progression/rosterSlots";
 
+const SAVE_BACKUP_KEY = `${GAME.SAVE_KEY}-backup`;
+
 export type Bindings = Record<"p1" | "p2", Record<ActionName, string[]>>;
 
 export type Stats = {
@@ -37,6 +39,7 @@ export type SaveData = {
   arcadeCleared: boolean;
   tournamentWon: boolean;
   storyCleared: string[];
+  challengeClears: string[];
   unlockedCharacters: string[];
   revealedCharacters: string[];
   arcadeClears: string[];
@@ -87,11 +90,12 @@ export function defaultSave(): SaveData {
     unlocked: initials,
     lastStage: "abandoned",
     rumble: true,
-    stats: { kharon: emptyStats(), nyx: emptyStats(), draven: emptyStats(), vespera: emptyStats() },
+    stats: { kharon: emptyStats(), nyx: emptyStats(), draven: emptyStats(), vespera: emptyStats(), gorr: emptyStats(), shai: emptyStats() },
     survivalBest: 0,
     arcadeCleared: false,
     tournamentWon: false,
     storyCleared: [],
+    challengeClears: [],
     unlockedCharacters: initials,
     revealedCharacters: [],
     arcadeClears: [],
@@ -164,20 +168,26 @@ function migrate(raw: SaveData): SaveData {
 
 export function loadSave(): SaveData {
   if (typeof window === "undefined") return defaultSave();
-  try {
-    const raw = localStorage.getItem(GAME.SAVE_KEY);
-    if (!raw) return defaultSave();
-    const parsed = JSON.parse(raw) as SaveData;
-    return migrate(parsed);
-  } catch {
-    return defaultSave();
+  const candidates = [GAME.SAVE_KEY, SAVE_BACKUP_KEY];
+  for (const key of candidates) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as SaveData;
+      return migrate(parsed);
+    } catch {
+      // Try the last-known-good backup before falling back to a new save.
+    }
   }
+  return defaultSave();
 }
 
 export function writeSave(data: SaveData) {
   if (typeof window === "undefined") return;
   try {
     const payload = JSON.stringify({ ...data, version: GAME.SAVE_VERSION });
+    const previous = localStorage.getItem(GAME.SAVE_KEY);
+    if (previous && previous !== payload) localStorage.setItem(SAVE_BACKUP_KEY, previous);
     localStorage.setItem(GAME.SAVE_KEY, payload);
   } catch {
     /* private mode / quota */

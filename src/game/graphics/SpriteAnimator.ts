@@ -6,6 +6,7 @@ export type DrawAnimOpts = {
   time: number;
   attack?: MoveDef | null;
   attackFrame?: number;
+  squash?: number;
 };
 
 export type SourceMode = "DEDICATED" | "GROUP_FALLBACK" | "CLIP_FALLBACK" | "CANVAS";
@@ -65,8 +66,6 @@ export class SpriteAnimator {
     if (!start) return null;
     const dedicated = this.tryDedicated(start, "DEDICATED");
     if (dedicated) return dedicated;
-    const group = this.tryGroup(start, "GROUP_FALLBACK");
-    if (group) return group;
 
     const seen = new Set<string>([start.name]);
     let cur: AnimClip | undefined = start.fallback ? this.pack.clips[start.fallback] : undefined;
@@ -74,6 +73,17 @@ export class SpriteAnimator {
       seen.add(cur.name);
       const fromClip = this.tryDedicated(cur, "CLIP_FALLBACK");
       if (fromClip) return fromClip;
+      cur = cur.fallback ? this.pack.clips[cur.fallback] : undefined;
+    }
+
+    const group = this.tryGroup(start, "GROUP_FALLBACK");
+    if (group) return group;
+
+    cur = start.fallback ? this.pack.clips[start.fallback] : undefined;
+    seen.clear();
+    seen.add(start.name);
+    while (cur && !seen.has(cur.name)) {
+      seen.add(cur.name);
       const fromGroup = this.tryGroup(cur, "GROUP_FALLBACK");
       if (fromGroup) return fromGroup;
       cur = cur.fallback ? this.pack.clips[cur.fallback] : undefined;
@@ -144,9 +154,10 @@ export class SpriteAnimator {
       this.animOrigin = opts.time;
     }
     const localTime = Math.max(0, opts.time - this.animOrigin);
-    const clip = resolved.clip;
+    // Timing belongs to the move that was requested. Pixels may come from a borrowed sheet.
+    const driver = this.clip(anim) ?? resolved.clip;
     const n = resolved.frames;
-    const i = pickFrame(clip, n, localTime, resolved.fps, opts);
+    const i = pickFrame(driver, n, localTime, driver.fps || resolved.fps, opts);
 
     this.lastAnim = anim;
     this.lastFrame = i;
@@ -157,22 +168,25 @@ export class SpriteAnimator {
 
     const cols = resolved.columns;
     const rows = resolved.rows;
-    const sheet = this.sheetForDraw(resolved);
-    const iw = imageWidth(sheet);
-    const ih = imageHeight(sheet);
+    const pixels = this.sheetForDraw(resolved);
+    const iw = imageWidth(pixels);
+    const ih = imageHeight(pixels);
     if (!iw || !ih) return false;
     const frameW = iw / cols;
     const frameH = ih / rows;
     const col = i % cols;
-    const row = Math.min(rows - 1, clip.row ?? Math.floor(i / cols));
+    const row = Math.min(rows - 1, driver.row ?? resolved.clip.row ?? Math.floor(i / cols));
     const sx = col * frameW;
     const sy = row * frameH;
 
-    const visScale = (clip.scale ?? 1) * (h / frameH);
-    const px = clip.pivotX * frameW;
-    const py = clip.pivotY * frameH;
-    const ox = clip.offsetX ?? 0;
-    const oy = clip.offsetY ?? 0;
+    const visScale = (driver.scale ?? resolved.clip.scale ?? 1) * (h / frameH);
+    const squash = opts.squash ?? 0;
+    const sxScale = visScale * (1 + squash * 0.16);
+    const syScale = visScale * (1 - squash * 0.18);
+    const px = driver.pivotX * frameW;
+    const py = driver.pivotY * frameH;
+    const ox = driver.offsetX ?? resolved.clip.offsetX ?? 0;
+    const oy = driver.offsetY ?? resolved.clip.offsetY ?? 0;
 
     ctx.save();
     ctx.translate(x + w / 2 + ox * facing, y + h + oy);
@@ -182,12 +196,12 @@ export class SpriteAnimator {
       ctx.filter = paletteFilter(this.palette);
     }
     ctx.drawImage(
-      sheet,
+      pixels,
       sx, sy, frameW, frameH,
-      -px * visScale,
-      -py * visScale,
-      frameW * visScale,
-      frameH * visScale,
+      -px * sxScale,
+      -py * syScale,
+      frameW * sxScale,
+      frameH * syScale,
     );
     ctx.filter = "none";
     ctx.restore();
@@ -218,10 +232,10 @@ export class SpriteAnimator {
     ctx.fillStyle = "#fff8f0";
     ctx.font = "10px monospace";
     const file = this.lastSrc.split("/").pop() ?? this.lastSrc;
-    ctx.fillText(`ANIM: ${this.lastAnim} #${this.lastFrame}`, x, y - 42);
+    ctx.fillText(`ANIM: ${this.lastAnim}  FRAME: ${this.lastFrame}`, x, y - 42);
     ctx.fillText(`SOURCE: ${file || "canvas"}`, x, y - 30);
     ctx.fillText(`MODE: ${this.lastMode}`, x, y - 18);
-    ctx.fillText(`TYPE: ${this.lastType}  PAL: ${this.palette.id}  f${facing > 0 ? "+" : "-"}`, x, y - 6);
+    ctx.fillText(`TYPE: ${this.lastType}  PAL: ${this.palette.id}  FACING: ${facing > 0 ? "+" : "-"}`, x, y - 6);
     ctx.restore();
   }
 }
@@ -323,14 +337,14 @@ function attackMappedFrame(n: number, attackFrame: number, startup: number, acti
 }
 
 function imageWidth(img: CanvasImageSource) {
-  if (img instanceof HTMLImageElement) return img.naturalWidth || img.width;
+  if (typeof HTMLImageElement !== "undefined" && img instanceof HTMLImageElement) return img.naturalWidth || img.width;
   if (typeof ImageBitmap !== "undefined" && img instanceof ImageBitmap) return img.width;
   if ("width" in img) return Number((img as { width: number }).width);
   return 0;
 }
 
 function imageHeight(img: CanvasImageSource) {
-  if (img instanceof HTMLImageElement) return img.naturalHeight || img.height;
+  if (typeof HTMLImageElement !== "undefined" && img instanceof HTMLImageElement) return img.naturalHeight || img.height;
   if (typeof ImageBitmap !== "undefined" && img instanceof ImageBitmap) return img.height;
   if ("height" in img) return Number((img as { height: number }).height);
   return 0;

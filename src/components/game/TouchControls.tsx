@@ -1,7 +1,15 @@
+import { useEffect, useState } from "react";
 import type { ActionName } from "@/game/core/config";
 import type { Input } from "@/game/input/Input";
 
 export function TouchControls({ input }: { input: Input }) {
+  const [touch, setTouch] = useState(false);
+  useEffect(() => {
+    const query = matchMedia('(pointer: coarse)');
+    const update = () => setTouch(query.matches);
+    update(); query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const hold = (a: ActionName) => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
@@ -22,8 +30,9 @@ export function TouchControls({ input }: { input: Input }) {
     </button>
   );
 
+  if (!touch) return null;
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-2 z-20 flex justify-between px-2 sm:hidden">
+    <div className="pointer-events-none absolute inset-x-0 bottom-2 z-20 flex justify-between px-2">
       <div className="pointer-events-auto grid grid-cols-3 gap-1">
         <span />
         <Btn a="up" label="▲" />

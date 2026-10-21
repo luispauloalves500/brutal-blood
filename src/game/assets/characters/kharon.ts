@@ -1,3 +1,4 @@
+import { assetUrl } from "../url";
 import { clip, clipMap, bindSheets, fighterSheets, bindAvailableClips } from "../clips";
 import { KHARON_PALETTES } from "../palettes";
 import type { CharacterAssetManifest } from "../types";
@@ -30,10 +31,10 @@ function phases(n: number, startN: number, actN: number, recN: number, startup: 
 
 export const kharonAssets: CharacterAssetManifest = bindAvailableClips({
   id: "kharon",
-  portrait: "/fighters/kharon.webp",
+  portrait: assetUrl("/fighters/kharon.webp"),
   skin: "default",
   availableClips: [
-    "idle", "walk", "dash", "crouch", "block",
+    "idle", "walk", "dash", "crouch", "block", "blockLow",
     "light", "medium", "heavy", "kickLight", "kickHeavy", "aerial",
     "jumpStart", "jump", "fall",
     "hit", "hitHeavy", "knockdown", "wakeup",

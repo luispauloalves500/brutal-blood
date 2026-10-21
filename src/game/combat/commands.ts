@@ -20,6 +20,7 @@ export class CommandBuffer {
   private lastBackTap = -99;
   private forwardHeld = false;
   private backHeld = false;
+  private consumedDashTap = -99;
 
   tick(input: Input, slot: "p1" | "p2", facing: number) {
     this.frame++;
@@ -40,6 +41,14 @@ export class CommandBuffer {
     if (this.frame - this.lastForwardTap <= 16 && this.forwardHeld && this.countTap(6) >= 2) return 1;
     if (this.frame - this.lastBackTap <= 16 && this.backHeld && this.countTap(4) >= 2) return -1;
     return 0;
+  }
+
+  consumeDash(): 0 | 1 | -1 {
+    const dir = this.dashDir();
+    const tap = dir === 1 ? this.lastForwardTap : this.lastBackTap;
+    if (!dir || tap === this.consumedDashTap) return 0;
+    this.consumedDashTap = tap;
+    return dir;
   }
 
   private countTap(dir: number) {
@@ -70,7 +79,7 @@ export class CommandBuffer {
     return false;
   }
 
-  resolveMove(data: CharacterDef, button: AttackButtonHit, airborne: boolean, finish = false): MoveDef | null {
+  resolveMove(data: CharacterDef, button: AttackButtonHit, airborne: boolean, finish = false, simplified = true): MoveDef | null {
     if (finish) {
       for (const fin of data.finishes) {
         const parsed = parseCommand(fin.command);
@@ -90,6 +99,7 @@ export class CommandBuffer {
       const { motion } = parseCommand(m.command!);
       if (this.matchMotion(motion)) return m;
     }
+    if (!simplified && (button === "special" || button === "super")) return null;
     if (button === "special") {
       const def = data.moves[data.specials[0]];
       if (def) return def;
@@ -112,6 +122,7 @@ export class CommandBuffer {
 
   reset() {
     this.dirs = [];
+    this.forwardHeld = false; this.backHeld = false; this.consumedDashTap = -99;
     this.frame = 0;
     this.lastForwardTap = -99;
     this.lastBackTap = -99;
@@ -155,7 +166,7 @@ export function commandLabel(cmd: string): string {
 
 function dummyFinish(id: string, name: string): MoveDef {
   return {
-    id, name, type: "finish", damage: 0, range: 0, startup: 8, active: 20, recovery: 10,
+    id, name, type: "finish", damage: 0, range: 0, startup: 12, active: 48, recovery: 36,
     hitStun: 0, blockStun: 0, knockback: 0, priority: 10, meterGain: 0,
   };
 }

@@ -125,3 +125,9 @@
 @media (prefers-reduced-motion: reduce) {
   .bb-btn, .ember { transition: none; animation: none !important; }
 }
+
+/* Accessibility: preserve layout and fighter identity. */
+.bb-high-contrast { --color-mute: #dfd6d8; --color-line: #a39196; }
+.bb-high-contrast .text-mute { color: #e2dadd; }
+.bb-high-contrast .bb-panel { border-color: #a39196; background-color: #09070b; }
+.bb-reduced-motion *, .bb-reduced-motion *::before, .bb-reduced-motion *::after { animation: none !important; transition: none !important; }

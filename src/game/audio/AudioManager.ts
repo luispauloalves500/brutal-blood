@@ -13,6 +13,11 @@ export class AudioManager {
   private musicTimer: number | null = null;
   private ambientTimer: number | null = null;
   private musicOn = false;
+  private intensity = 0;
+  private focused = true;
+
+  setIntensity(value: number) { this.intensity = Math.max(0, Math.min(1, value)); }
+  setFocus(focused: boolean) { this.focused = focused; this.apply(this.settings); }
 
   constructor(settings: AudioSettings) {
     this.settings = settings;
@@ -42,7 +47,7 @@ export class AudioManager {
     if (!this.master || !this.ctx) return;
     const mute = s.muted ? 0 : 1;
     const curve = (v: number) => v * v;
-    this.master.gain.setTargetAtTime(curve(s.master) * mute, this.ctx.currentTime, 0.02);
+    this.master.gain.setTargetAtTime(curve(s.master) * mute * (this.focused ? 1 : 0.15), this.ctx.currentTime, 0.02);
     this.buses.music?.gain.setTargetAtTime(curve(s.music), this.ctx.currentTime, 0.02);
     this.buses.sfx?.gain.setTargetAtTime(curve(s.sfx), this.ctx.currentTime, 0.02);
     this.buses.voice?.gain.setTargetAtTime(curve(s.voice), this.ctx.currentTime, 0.02);
@@ -129,28 +134,47 @@ export class AudioManager {
   uiMove() { this.tone(520, 0.06, "square", 0.04, "ui"); }
   uiConfirm() { this.tone(220, 0.12, "sawtooth", 0.06, "ui", 180); }
   uiBack() { this.tone(180, 0.1, "triangle", 0.05, "ui", -80); }
+  private musicStep = 0;
   hit(heavy = false) {
-    this.noise(heavy ? 0.14 : 0.07, heavy ? 0.18 : 0.1, "sfx", heavy ? 200 : 600);
-    this.tone(heavy ? 90 : 160, 0.09, "square", heavy ? 0.12 : 0.07, "sfx", -40);
+    this.noise(heavy ? 0.09 : 0.04, heavy ? 0.22 : 0.11, "sfx", heavy ? 160 : 700);
+    this.tone(heavy ? 62 : 128, heavy ? 0.13 : 0.06, "sine", heavy ? 0.2 : 0.09, "sfx", heavy ? -28 : -46);
+    this.tone(heavy ? 210 : 420, 0.035, "triangle", heavy ? 0.07 : 0.04, "sfx", -70);
   }
   thump() {
-    this.tone(52, 0.18, "sine", 0.16, "sfx", -8);
-    this.noise(0.12, 0.08, "sfx", 90);
+    this.tone(42, 0.2, "sine", 0.18, "sfx", -6);
+    this.noise(0.1, 0.07, "sfx", 80);
   }
-  block() { this.tone(420, 0.08, "square", 0.05, "sfx", -120); this.noise(0.05, 0.06, "sfx", 1200); }
-  whoosh() { this.noise(0.08, 0.05, "sfx", 800); }
-  special() { this.tone(140, 0.22, "sawtooth", 0.1, "sfx", 260); this.noise(0.18, 0.1, "sfx", 300); }
+  block() {
+    this.tone(720, 0.045, "square", 0.035, "sfx", -260);
+    this.tone(190, 0.07, "triangle", 0.05, "sfx", -50);
+    this.noise(0.035, 0.045, "sfx", 1600);
+  }
+  whoosh() { this.noise(0.07, 0.045, "sfx", 900); this.tone(300, 0.05, "triangle", 0.02, "sfx", 80); }
+  special() {
+    this.tone(100, 0.2, "sawtooth", 0.07, "sfx", 70);
+    this.tone(200, 0.16, "triangle", 0.045, "sfx", 110);
+    this.noise(0.12, 0.07, "sfx", 420);
+  }
   super() {
-    this.tone(60, 0.5, "sawtooth", 0.16, "sfx", 200);
-    this.tone(180, 0.4, "square", 0.08, "sfx", 400);
-    this.noise(0.3, 0.14, "sfx", 150);
+    this.tone(38, 0.5, "sine", 0.2, "sfx", -8);
+    this.tone(76, 0.36, "sawtooth", 0.07, "sfx", 140);
+    this.noise(0.26, 0.11, "sfx", 110);
   }
-  ko() { this.tone(70, 0.6, "sine", 0.18, "voice", -30); this.noise(0.4, 0.16, "sfx", 80); }
-  finish() { this.tone(90, 0.8, "sawtooth", 0.14, "voice", 80); this.noise(0.5, 0.12, "sfx", 100); }
-  jump() { this.tone(240, 0.08, "triangle", 0.05, "sfx", 120); }
-  land() { this.noise(0.05, 0.04, "sfx", 200); }
+  ko() {
+    this.tone(52, 0.7, "sine", 0.2, "voice", -24);
+    this.tone(104, 0.4, "triangle", 0.05, "voice", -36);
+    this.noise(0.32, 0.11, "sfx", 60);
+  }
+  finish() {
+    this.tone(46, 0.85, "sine", 0.16, "voice", 16);
+    this.tone(92, 0.55, "sawtooth", 0.05, "voice", 24);
+    this.noise(0.4, 0.09, "sfx", 80);
+  }
+  jump() { this.tone(260, 0.07, "triangle", 0.045, "sfx", 90); }
+  land() { this.noise(0.05, 0.05, "sfx", 180); this.tone(90, 0.05, "sine", 0.04, "sfx", -20); }
 
   startMusic() {
+    if (this.musicOn) return;
     this.musicOn = true;
     this.tickMusic();
   }
@@ -161,12 +185,16 @@ export class AudioManager {
 
   private tickMusic() {
     if (!this.musicOn || !this.ctx) return;
-    const root = 55;
-    const notes = [0, 0, 3, 7, 10, 7, 3, 0];
-    const i = Math.floor(Math.random() * notes.length);
-    this.tone(root * Math.pow(2, notes[i] / 12), 0.35, "sawtooth", 0.035, "music", 0);
-    if (Math.random() < 0.4) this.tone(root * 2 * Math.pow(2, notes[(i + 4) % notes.length] / 12), 0.2, "triangle", 0.02, "music");
-    this.musicTimer = window.setTimeout(() => this.tickMusic(), 380);
+    const root = 46 + this.intensity * 8;
+    const scale = [0, 3, 7, 10, 7, 3, 0, -2];
+    const step = this.musicStep++;
+    const semi = scale[step % scale.length];
+    const beat = step % 4;
+    const freq = root * Math.pow(2, semi / 12);
+    this.tone(freq, beat === 0 ? 0.32 : 0.16, "triangle", beat === 0 ? 0.045 : 0.026, "music");
+    if (beat === 0) this.tone(root / 2, 0.34, "sine", 0.055, "music");
+    if (beat === 2) this.noise(0.04, 0.018, "music", 1800);
+    this.musicTimer = window.setTimeout(() => this.tickMusic(), 440 - this.intensity * 170);
   }
 
   private startAmbient() {

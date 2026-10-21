@@ -1,3 +1,4 @@
+import { assetUrl } from "@/game/assets/url";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
@@ -85,10 +86,11 @@ type FightResults = {
   next?: "arcade" | "survival" | "continue" | "tournament" | "story" | "progress" | null;
 };
 
-const MENU: { id: string; label: string; action: Screen | "arcade" | "versus" | "training" | "survival" | "tournament" | "story" | "soon"; soon?: boolean; icon: typeof Swords }[] = [
+const MENU: { id: string; label: string; action: Screen | "arcade" | "versus" | "training" | "survival" | "tournament" | "story" | "challenge" | "soon"; soon?: boolean; icon: typeof Swords }[] = [
   { id: "story", label: "História", action: "story", icon: BookOpen },
   { id: "arcade", label: "Arcade", action: "arcade", icon: Swords },
   { id: "versus", label: "Versus", action: "versus", icon: Users },
+  { id: "challenge", label: "Desafios", action: "challenge", icon: Trophy },
   { id: "training", label: "Treino", action: "training", icon: Swords },
   { id: "survival", label: "Survival", action: "survival", icon: Swords },
   { id: "tourney", label: "Torneio", action: "tournament", icon: Trophy },
@@ -117,7 +119,7 @@ export function BrutalBlood() {
   const [bindings, setBindings] = useState<Bindings>(DEFAULT_BINDINGS);
   const [rumble, setRumble] = useState(true);
   const [remap, setRemap] = useState<{ slot: "p1" | "p2"; action: ActionName } | null>(null);
-  const [training, setTraining] = useState<TrainingOpts>({ infiniteHp: true, infiniteMeter: true, showHitboxes: false, showFrameData: true, cpu: "stand", previewClip: "" });
+  const [training, setTraining] = useState<TrainingOpts>({ infiniteHp: true, infiniteMeter: true, showHitboxes: false, showFrameData: true, cpu: "stand", previewClip: "", frameAdvance: false, forceCounter: false });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<Game | null>(null);
   const inputRef = useRef<Input | null>(null);
@@ -195,7 +197,7 @@ export function BrutalBlood() {
     audioRef.current = audio;
     setRenderer(detectRenderer(saved.graphics.accel));
     setRec(recommendQuality());
-    const vis = () => audio.resume();
+    const vis = () => { audio.setFocus(!document.hidden); if (!document.hidden) audio.resume(); };
     document.addEventListener("visibilitychange", vis);
     return () => {
       input.detach();
@@ -283,7 +285,7 @@ export function BrutalBlood() {
     } else if (mode === "arcade") {
       const fight = ARCADE_LADDER[idx] ?? ARCADE_LADDER[0];
       foe = arcadeOpponent(p1, fight, idx);
-      diff = fight.difficulty;
+      diff = runRef.current.campaignDifficulty;
       stage = fight.stageId;
       label = `${fight.label}  ${idx + 1}/${ARCADE_LADDER.length}`;
     } else if (mode === "survival") {
@@ -385,6 +387,7 @@ export function BrutalBlood() {
     if (mode === "training") game.setTraining(training);
     gameRef.current = game;
     game.start();
+    audioRef.current.startMusic();
     setScreen("fight");
     setPaused(false);
   };
@@ -395,11 +398,17 @@ export function BrutalBlood() {
       quitTo("menu");
       return;
     }
-    const combo = Math.max(match.p1.maxCombo, match.p2.maxCombo);
+    const combo = match.p2.maxCombo;
+    if (mode === "challenge") {
+      patchSave({ challengeClears: Array.from(new Set([...getSave().challengeClears, p1.id])) });
+      bumpSave();
+      setResults({ won: true, title: "DESAFIOS CONCLUÍDOS", subtitle: "Cinco fundamentos dominados. Conclusão salva para este lutador.", maxCombo: combo, health: match.p1.health, meter: match.p1.meter, superMeter: match.p1.superMeter, next: null });
+      return;
+    }
     bumpStat(p1.id, won ? "wins" : "losses");
     if (p2) bumpStat(p2.id, won ? "losses" : "wins");
     recordMaxCombo(p1.id, combo);
-    if (match.bloodFinishDone) recordBloodFinish(p1.id);
+    if (match.bloodFinishDone && match.finisher === match.p1) recordBloodFinish(p1.id);
     for (let i = 0; i < match.perfectCount; i++) recordPerfect(p1.id);
     bumpSave();
     const pull = () => {
@@ -613,7 +622,7 @@ export function BrutalBlood() {
   };
 
   return (
-    <main className="bb-root relative font-body">
+    <main className={`bb-root relative font-body ${gfx.highContrast ? "bb-high-contrast" : ""} ${gfx.reduceFlashes ? "bb-reduced-motion" : ""}`}>
       {screen !== "fight" && screen !== "loading" && <Backdrop />}
 
       {screen === "loading" && pendingFight.current && (
@@ -634,6 +643,7 @@ export function BrutalBlood() {
           <button type="button" className="flex h-full w-full flex-col items-center justify-center gap-6" onClick={unlock}>
             <Logo title={equippedTitleName()} />
             <p className="bb-eyebrow">Toque para entrar na arena</p>
+            <p className="text-[0.65rem] tracking-[0.28em] text-mute">v{GAME.VERSION}</p>
           </button>
         </section>
       )}
@@ -642,7 +652,7 @@ export function BrutalBlood() {
         <MenuView
           onAction={(a, label) => {
             if (a === "soon") { setSoon(label); audioRef.current?.uiBack(); return; }
-            if (a === "arcade" || a === "versus" || a === "training" || a === "survival" || a === "tournament" || a === "story") openMode(a);
+            if (a === "arcade" || a === "versus" || a === "training" || a === "survival" || a === "tournament" || a === "story" || a === "challenge") openMode(a);
             else nav(a);
           }}
         />
@@ -755,6 +765,14 @@ export function BrutalBlood() {
           <TrainingDock
             training={training}
             damage={hud.trainingDamage}
+            recording={hud.recording}
+            onRecord={(action) => {
+              const m = gameRef.current?.match;
+              if (!m) return;
+              if (action === "record") { m.resetPositions(); m.recorder.record(); }
+              else if (action === "play") { m.resetPositions(); m.recorder.play(); }
+              else m.recorder.stop(m.input);
+            }}
             history={hud.inputHistory}
             hitstopFrames={hud.hitstopFrames}
             lastHitstop={hud.lastHitstop}
@@ -763,6 +781,12 @@ export function BrutalBlood() {
             frameAdv={hud.frameAdv}
             onChange={(t) => { setTraining(t); gameRef.current?.setTraining(t); }}
             onReset={() => gameRef.current?.match.resetPositions()}
+            onResetHealth={() => gameRef.current?.match.resetHealth()}
+            onResetMeter={() => gameRef.current?.match.resetMeter()}
+            onCorner={(kind) => gameRef.current?.match.resetPositions(kind)}
+            onAdvance={() => gameRef.current?.match.advanceFrame()}
+            onPause={() => gameRef.current?.match.togglePause()}
+            paused={!!hud.paused}
           />
         )}
         {paused && !results && (
@@ -868,7 +892,7 @@ function Logo({ title }: { title?: string | null }) {
 function Backdrop() {
   return (
     <>
-      <img src="/ui/menu-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover opacity-50" crossOrigin="anonymous" />
+      <img src={assetUrl("/ui/menu-bg.webp")} alt="" className="absolute inset-0 h-full w-full object-cover opacity-50" crossOrigin="anonymous" />
       <div className="absolute inset-0 bg-gradient-to-b from-ink/40 via-ink/70 to-ink" />
       <Embers />
     </>
@@ -1047,12 +1071,12 @@ function SelectView(props: {
           ) : (
             <p className="mt-4 text-xs leading-relaxed text-mute">
               {props.mode === "arcade"
-                ? "As arenas e a dificuldade avançam a cada rua."
+                ? "Cinco lutas na dificuldade selecionada, com uma arena por etapa."
                 : props.mode === "tournament"
                   ? "Semi na Catedral. Final na Fortaleza. O outro lado da chave é resolvido fora do ringue."
                   : props.mode === "story"
                     ? (props.p1 ? `${getStory(props.p1.id).title} — ${getStory(props.p1.id).blurb}` : "Cada lutador tem uma campanha própria de quatro capítulos.")
-                    : "Cada onda muda de arena. A vida e a energia carregam; um recuo de 18% de vida entre ondas."}
+                    : props.mode === "challenge" ? "Cinco missões: golpes, defesa, combo, especial e Super. Energia infinita e conclusão salva por lutador." : "Cada onda muda de arena. A vida e a energia carregam; um recuo de 18% de vida entre ondas."}
             </p>
           )}
           {props.mode === "tournament" && props.bracket && (
@@ -1111,15 +1135,7 @@ function SettingsView(props: {
               </button>
             ))}
           </div>
-          <label className="mt-4 block text-xs tracking-widest text-mute">
-            Aceleração
-            <select className="mt-1 w-full border border-line bg-ink p-2 text-bone" value={props.gfx.accel}
-              onChange={(e) => props.onGfx({ accel: e.target.value as typeof props.gfx.accel })}>
-              <option value="auto">Automático</option>
-              <option value="on">Ativado</option>
-              <option value="off">Desativado</option>
-            </select>
-          </label>
+          <p className="mt-4 text-xs text-mute">A aceleração do Canvas 2D e a sincronização de tela são gerenciadas pelo navegador.</p>
           <label className="mt-3 block text-xs tracking-widest text-mute">
             FPS máximo
             <select className="mt-1 w-full border border-line bg-ink p-2 text-bone" value={props.gfx.maxFps}
@@ -1132,7 +1148,6 @@ function SettingsView(props: {
           </label>
           {([
             ["fullscreen", "Tela cheia"],
-            ["vsync", "VSync"],
             ["particles", "Partículas"],
             ["effects", "Efeitos"],
             ["shadows", "Sombras"],
@@ -1140,6 +1155,9 @@ function SettingsView(props: {
             ["hitstop", "Hitstop"],
             ["bloom", "Bloom"],
             ["stageFx", "Efeitos de cenário"],
+            ["reduceFlashes", "Reduzir flashes de tela"],
+            ["highContrast", "Alto contraste"],
+            ["simplifiedCommands", "Especiais simplificados"],
             ["debugSprites", "Debug sprites"],
           ] as const).map(([k, lab]) => (
             <label key={k} className="mt-2 flex items-center justify-between text-sm">
@@ -1358,6 +1376,7 @@ function ProgressView(props: { onBack: () => void; saveTick: number }) {
         <div className="mt-6 grid gap-3 text-sm">
           <p>Lutadores: {snap.unlocked} / {snap.total}</p>
           <p>Arcade concluído: {snap.arcadeClears}</p>
+          <p>Desafios concluídos: {getSave().challengeClears.length} / {playable.length} lutadores</p>
           <p>Blood Finishes: {snap.bloodFinishes} / 20</p>
           <p>Desafiantes secretos: {snap.secretWins}</p>
           <p>Maior dificuldade: {snap.highestDifficulty ? DIFFICULTY_LABELS[snap.highestDifficulty] : "—"}</p>
@@ -1620,6 +1639,8 @@ const CLIP_PREVIEW = [
 function TrainingDock(props: {
   training: TrainingOpts;
   damage: number;
+  recording: string;
+  onRecord: (action: "record" | "play" | "stop") => void;
   history: string[];
   hitstopFrames: number;
   lastHitstop: number;
@@ -1628,22 +1649,30 @@ function TrainingDock(props: {
   frameAdv: number;
   onChange: (t: TrainingOpts) => void;
   onReset: () => void;
+  onResetHealth: () => void;
+  onResetMeter: () => void;
+  onCorner: (kind: "mid" | "cornerP1" | "cornerP2") => void;
+  onAdvance: () => void;
+  onPause: () => void;
+  paused: boolean;
 }) {
   const t = props.training;
   return (
-    <aside className="pointer-events-auto absolute right-3 top-28 z-20 hidden w-52 bb-panel p-3 text-xs sm:block">
+    <aside className="pointer-events-auto absolute right-3 top-28 z-20 hidden w-56 bb-panel p-3 text-xs sm:block max-h-[70vh] overflow-y-auto">
       <div className="font-display tracking-widest">TREINO</div>
       <p className="mt-1 tabular-nums text-mute">Dano último hit: {props.damage}</p>
       <p className="tabular-nums text-mute">
         Hitstop: {props.hitstopFrames > 0 ? `${props.hitstopFrames}F` : "—"} · último {props.lastHitstop}F
       </p>
       <p className="tabular-nums text-ember">{props.combatEvent || "—"} · scale {Math.round(props.comboScale * 100)}%</p>
-      <p className="tabular-nums text-mute">Frame adv: {props.frameAdv > 0 ? `+${props.frameAdv}` : props.frameAdv}</p>
+      {t.showFrameData && <p className="tabular-nums text-mute">Frame adv: {props.frameAdv > 0 ? `+${props.frameAdv}` : props.frameAdv}</p>}
       <p className="truncate text-mute">Inputs: {props.history.slice(-8).join(" ")}</p>
       <label className="mt-2 flex justify-between">HP infinito <input type="checkbox" checked={t.infiniteHp} onChange={(e) => props.onChange({ ...t, infiniteHp: e.target.checked })} /></label>
       <label className="mt-1 flex justify-between">Energia infinita <input type="checkbox" checked={t.infiniteMeter} onChange={(e) => props.onChange({ ...t, infiniteMeter: e.target.checked })} /></label>
       <label className="mt-1 flex justify-between">Hitboxes <input type="checkbox" checked={t.showHitboxes} onChange={(e) => props.onChange({ ...t, showHitboxes: e.target.checked })} /></label>
       <label className="mt-1 flex justify-between">Frame data <input type="checkbox" checked={t.showFrameData !== false} onChange={(e) => props.onChange({ ...t, showFrameData: e.target.checked })} /></label>
+      <label className="mt-1 flex justify-between">Counter-hit <input type="checkbox" checked={!!t.forceCounter} onChange={(e) => props.onChange({ ...t, forceCounter: e.target.checked })} /></label>
+      <label className="mt-1 flex justify-between">Avanço de frame <input type="checkbox" checked={!!t.frameAdvance} onChange={(e) => props.onChange({ ...t, frameAdvance: e.target.checked })} /></label>
       <label className="mt-2 block text-mute">
         Clip P1
         <select className="mt-1 w-full border border-line bg-ink p-1 text-bone" value={t.previewClip || ""}
@@ -1664,10 +1693,26 @@ function TrainingDock(props: {
           <option value="jump">Pulando</option>
           <option value="attack">Atacando</option>
           <option value="attackAfterBlock">Ataque após defesa</option>
+          <option value="reversal">Reversal no wake-up</option>
           <option value="normal">Normal</option>
         </select>
       </label>
-      <button type="button" className="bb-btn mt-2 w-full py-2" onClick={props.onReset}>Reset posição</button>
+      <p className="mt-2 text-ember" aria-live="polite">{props.recording}</p>
+      <p className="text-mute">Grave até 10s usando os controles P2 (setas e numpad).</p>
+      <div className="mt-2 grid grid-cols-3 gap-1">
+        <button className="bb-btn px-1 py-2" onClick={() => props.onRecord("record")}>Gravar</button>
+        <button className="bb-btn px-1 py-2" onClick={() => props.onRecord("stop")}>Parar</button>
+        <button className="bb-btn px-1 py-2" onClick={() => props.onRecord("play")}>Repetir</button>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-1">
+        <button type="button" className="bb-btn py-2" onClick={props.onReset}>Reset meio</button>
+        <button type="button" className="bb-btn py-2" onClick={() => props.onCorner("cornerP1")}>Canto P1</button>
+        <button type="button" className="bb-btn py-2" onClick={() => props.onCorner("cornerP2")}>Canto P2</button>
+        <button type="button" className="bb-btn py-2" onClick={props.onResetHealth}>Reset HP</button>
+        <button type="button" className="bb-btn py-2" onClick={props.onResetMeter}>Reset meter</button>
+        <button type="button" className="bb-btn py-2" onClick={props.onPause}>{props.paused ? "Continuar" : "Pausar"}</button>
+      </div>
+      <button type="button" className="bb-btn mt-1 w-full py-2" onClick={props.onAdvance}>Avançar 1 frame</button>
     </aside>
   );
 }

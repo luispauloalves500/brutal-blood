@@ -156,7 +156,49 @@ const dravenStory: StoryCampaign = {
   ],
 };
 
+const vesperaStory: StoryCampaign = {
+  fighterId: "vespera", title: "O ALTAR VAZIO",
+  blurb: "Os sinos da Catedral Negra chamam por uma rainha que se recusa a servir.",
+  ending: "Vespera desfaz o último pacto. O altar permanece vazio: pela primeira vez, o sangue pertence a quem o carrega.",
+  beats: [
+    { chapter: "I", title: "O preço do véu", intro: "Nyx roubou o selo da catedral. Vespera encontra suas pegadas na floresta profana.", winLine: "O selo volta. A ladra revela quem pagou por ele.", opponentId: "nyx", stageId: "forest", difficulty: "easy" },
+    { chapter: "II", title: "Ferro consagrado", intro: "Draven guarda o portão industrial. O ferro de seus punhos foi forjado com o sino roubado.", winLine: "O sino partido ainda canta. Vespera reconhece a voz do carrasco.", opponentId: "draven", stageId: "industrial", difficulty: "hard" },
+    { chapter: "III", title: "A sentença da rainha", intro: "Kharon invade a Catedral Negra para cobrar o pacto. Vespera transforma o altar em tribunal.", winLine: "A sentença cai sobre o cobrador. Resta destruir o contrato original.", opponentId: "kharon", stageId: "cathedral", difficulty: "brutal" },
+    { chapter: "IV", title: "Sangue livre", intro: "Na fortaleza, Draven protege o contrato sob ordem do torneio. Vespera atravessa o último portão.", winLine: "O contrato se dissolve no véu. Nenhuma coroa vale uma alma cativa.", opponentId: "draven", stageId: "fortress", difficulty: "nightmare" },
+  ],
+};
+
+
+const gorrStory: StoryCampaign = {
+  fighterId: "gorr",
+  title: "A FOME",
+  blurb: "As correntes quebraram. Agora Gorr procura quem construiu a jaula.",
+  ending: "A fortaleza perdeu as grades. Gorr descobre que liberdade também pode pesar toneladas.",
+  beats: [
+    { chapter: "I", title: "Porta arrombada", intro: "Draven bloqueia o corredor industrial. Gorr não pede passagem.", winLine: "O ferro abriu espaço.", opponentId: "draven", stageId: "industrial", difficulty: "easy" },
+    { chapter: "II", title: "Caçadora de gigantes", intro: "Shai recebeu contrato para derrubar o Devorador antes que ele chegue ao templo.", winLine: "O futuro dela não previu o peso.", opponentId: "shai", stageId: "temple", difficulty: "hard" },
+    { chapter: "III", title: "A sentença", intro: "Kharon reconhece o antigo prisioneiro e tenta devolver as correntes ao pescoço certo.", winLine: "Nenhuma lista segura uma fera livre.", opponentId: "kharon", stageId: "cathedral", difficulty: "brutal" },
+    { chapter: "IV", title: "Quebrar a jaula", intro: "A Fortaleza Final foi construída com o sangue de lutadores esquecidos. Gorr chegou para cobrar as paredes.", winLine: "As grades caem. A fome fica.", opponentId: "vespera", stageId: "fortress", difficulty: "nightmare" },
+  ],
+};
+
+const shaiStory: StoryCampaign = {
+  fighterId: "shai",
+  title: "OLHO CARMESIM",
+  blurb: "Shai enxerga futuros demais. Um deles termina na Fortaleza Final.",
+  ending: "O olho se fecha por um instante. Pela primeira vez, Shai escolhe um futuro em vez de apenas observá-lo.",
+  beats: [
+    { chapter: "I", title: "Sangue previsto", intro: "Nyx cruza a floresta exatamente como Shai viu. Falta apenas provar que a visão estava certa.", winLine: "Um futuro eliminado.", opponentId: "nyx", stageId: "forest", difficulty: "easy" },
+    { chapter: "II", title: "Peso impossível", intro: "Gorr deveria cair no primeiro selo. Ele continua andando. Shai precisa recalcular.", winLine: "Até gigantes deixam rastros.", opponentId: "gorr", stageId: "industrial", difficulty: "hard" },
+    { chapter: "III", title: "Véu sobre o olho", intro: "Vespera esconde um caminho que o Olho Carmesim não consegue atravessar.", winLine: "O véu rasgou. O caminho existe.", opponentId: "vespera", stageId: "cathedral", difficulty: "brutal" },
+    { chapter: "IV", title: "O futuro que morde", intro: "Kharon espera no fim da linha. Em todas as visões, uma lâmina cai. Shai decide qual.", winLine: "O futuro mudou de dono.", opponentId: "kharon", stageId: "fortress", difficulty: "nightmare" },
+  ],
+};
+
 const CAMPAIGNS: Record<string, StoryCampaign> = {
+  gorr: gorrStory,
+  shai: shaiStory,
+  vespera: vesperaStory,
   kharon: kharonStory,
   nyx: nyxStory,
   draven: dravenStory,

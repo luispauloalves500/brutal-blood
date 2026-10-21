@@ -1,3 +1,4 @@
+import { assetUrl } from "./url";
 import type { AnimClip, AnimName, CharacterAssetManifest } from "./types";
 
 const NO_LOOP = new Set<AnimName>([
@@ -41,6 +42,8 @@ export const CLIP_FILES: Record<AnimName, string> = {
   taunt: "taunt.webp",
 };
 
+export const ANIM_NAMES = Object.keys(CLIP_FILES) as AnimName[];
+
 export const FALLBACK_OF: Partial<Record<AnimName, AnimName>> = {
   walkBack: "walk",
   dash: "walk",
@@ -50,25 +53,27 @@ export const FALLBACK_OF: Partial<Record<AnimName, AnimName>> = {
   block: "idle",
   blockLow: "block",
   intro: "idle",
-  taunt: "idle",
   victory: "idle",
   hitHeavy: "hit",
   knockdown: "hit",
-  wakeup: "hit",
+  wakeup: "knockdown",
   medium: "light",
   heavy: "light",
   kickLight: "light",
-  kickHeavy: "light",
-  aerial: "light",
-  throw: "light",
-  special1: "light",
-  special2: "light",
-  special3: "light",
-  super: "light",
+  kickHeavy: "heavy",
+  aerial: "jump",
+  throw: "medium",
+  special1: "heavy",
+  special2: "kickLight",
+  special3: "heavy",
+  super: "heavy",
   finish1: "super",
-  finish2: "super",
-  counter: "light",
+  finish2: "heavy",
+  counter: "dash",
+  taunt: "crouch",
 };
+
+export type ClipKind = "DEDICATED" | "CLIP_FALLBACK" | "GROUP_FALLBACK" | "MISSING";
 
 export function clip(name: AnimName, frames: number, fps: number, extra: Partial<AnimClip> = {}): AnimClip {
   return {
@@ -140,7 +145,7 @@ export function bindSheets(clips: Record<string, AnimClip>, sheets: Partial<Reco
 }
 
 export function fighterSheets(id: string): Partial<Record<string, SheetBind>> {
-  const p = `/fighters/${id}`;
+  const p = assetUrl(`/fighters/${id}`);
   const base: Partial<Record<string, SheetBind>> = {
     idle: { src: `${p}/idle.webp`, frames: 4, columns: 2, rows: 2, fps: 8 },
     walk: { src: `${p}/walk.webp`, frames: 6, columns: 3, rows: 2, fps: 10 },
@@ -165,10 +170,47 @@ const SHEET_OVERRIDE: Record<string, Partial<Record<string, Partial<SheetBind>>>
     walk: { frames: 8, columns: 4, rows: 2, fps: 10 },
     jump: { frames: 6, columns: 3, rows: 2, fps: 10 },
   },
+  // Vespera v0.9.4: same-design transparent WebPs are also the safety group fallbacks.
+  // This prevents any missing dedicated clip from swapping back to the legacy model.
+  vespera: {
+    idle: { src: assetUrl("/fighters/vespera/idle.webp"), frames: 8, columns: 4, rows: 2, fps: 8 },
+    walk: { src: assetUrl("/fighters/vespera/walk.webp"), frames: 8, columns: 4, rows: 2, fps: 9 },
+    attack: { src: assetUrl("/fighters/vespera/light.webp"), frames: 6, columns: 3, rows: 2, fps: 12 },
+    hurt: { src: assetUrl("/fighters/vespera/hit.webp"), frames: 4, columns: 2, rows: 2, fps: 10 },
+    jump: { src: assetUrl("/fighters/vespera/jump.webp"), frames: 6, columns: 3, rows: 2, fps: 8 },
+  },
+  nyx: {
+    idle: { frames: 4, columns: 2, rows: 2, fps: 8 },
+    walk: { frames: 6, columns: 3, rows: 2, fps: 10 },
+    attack: { src: assetUrl("/fighters/nyx/light.webp"), frames: 4, columns: 2, rows: 2, fps: 14 },
+    hurt: { src: assetUrl("/fighters/nyx/hit.webp"), frames: 4, columns: 2, rows: 2, fps: 10 },
+    jump: { frames: 4, columns: 2, rows: 2, fps: 10 },
+  },
+  draven: {
+    idle: { frames: 4, columns: 2, rows: 2, fps: 8 },
+    walk: { frames: 6, columns: 3, rows: 2, fps: 10 },
+    attack: { src: assetUrl("/fighters/draven/light.webp"), frames: 4, columns: 2, rows: 2, fps: 14 },
+    hurt: { src: assetUrl("/fighters/draven/hit.webp"), frames: 4, columns: 2, rows: 2, fps: 10 },
+    jump: { frames: 4, columns: 2, rows: 2, fps: 10 },
+  },
+  gorr: {
+    idle: { frames: 4, columns: 2, rows: 2, fps: 8 },
+    walk: { frames: 6, columns: 3, rows: 2, fps: 9 },
+    attack: { src: assetUrl("/fighters/gorr/heavy.webp"), frames: 4, columns: 2, rows: 2, fps: 10 },
+    hurt: { src: assetUrl("/fighters/gorr/hit.webp"), frames: 4, columns: 2, rows: 2, fps: 9 },
+    jump: { frames: 4, columns: 2, rows: 2, fps: 9 },
+  },
+  shai: {
+    idle: { frames: 4, columns: 2, rows: 2, fps: 10 },
+    walk: { frames: 6, columns: 3, rows: 2, fps: 12 },
+    attack: { src: assetUrl("/fighters/shai/light.webp"), frames: 4, columns: 2, rows: 2, fps: 14 },
+    hurt: { src: assetUrl("/fighters/shai/hit.webp"), frames: 4, columns: 2, rows: 2, fps: 11 },
+    jump: { frames: 4, columns: 2, rows: 2, fps: 10 },
+  },
 };
 
 export function dedicatedPath(id: string, name: AnimName) {
-  return `/fighters/${id}/${CLIP_FILES[name]}`;
+  return assetUrl(`/fighters/${id}/${CLIP_FILES[name]}`);
 }
 
 /**
@@ -193,3 +235,43 @@ export function bindAvailableClips(manifest: CharacterAssetManifest): CharacterA
   return manifest;
 }
 
+/** Classify how SpriteAnimator will resolve a clip without loading images. */
+export function classifyClip(manifest: CharacterAssetManifest, name: AnimName): ClipKind {
+  const clip = manifest.clips[name];
+  if (!clip) return "MISSING";
+  if (clip.src) return "DEDICATED";
+  const seen = new Set<string>([name]);
+  let cur = clip.fallback;
+  while (cur && !seen.has(cur)) {
+    seen.add(cur);
+    const next = manifest.clips[cur];
+    if (next?.src) return "CLIP_FALLBACK";
+    cur = next?.fallback;
+  }
+  if (clip.fallbackSrc) return "GROUP_FALLBACK";
+  cur = clip.fallback;
+  seen.clear();
+  seen.add(name);
+  while (cur && !seen.has(cur)) {
+    seen.add(cur);
+    const next = manifest.clips[cur];
+    if (next?.fallbackSrc) return "GROUP_FALLBACK";
+    cur = next?.fallback;
+  }
+  return "MISSING";
+}
+
+export function clipInventory(manifest: CharacterAssetManifest) {
+  const dedicated: AnimName[] = [];
+  const clipFallback: AnimName[] = [];
+  const groupFallback: AnimName[] = [];
+  const missing: AnimName[] = [];
+  for (const name of ANIM_NAMES) {
+    const kind = classifyClip(manifest, name);
+    if (kind === "DEDICATED") dedicated.push(name);
+    else if (kind === "CLIP_FALLBACK") clipFallback.push(name);
+    else if (kind === "GROUP_FALLBACK") groupFallback.push(name);
+    else missing.push(name);
+  }
+  return { dedicated, clipFallback, groupFallback, missing };
+}

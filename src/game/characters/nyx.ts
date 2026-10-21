@@ -1,3 +1,4 @@
+import { assetUrl } from "../assets/url";
 import type { CharacterDef } from "./types";
 
 const gatling = ["medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
@@ -9,7 +10,7 @@ export const nyx: CharacterDef = {
   style: "Assassina móvel — mixups, dash e punições longas",
   color: "#6a4cc4",
   accent: "#d697ff",
-  portrait: "/fighters/nyx.webp",
+  portrait: assetUrl("/fighters/nyx.webp"),
   stats: {
     speed: 385,
     backSpeed: 290,

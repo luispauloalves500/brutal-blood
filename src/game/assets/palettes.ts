@@ -27,6 +27,16 @@ export const VESPERA_PALETTES: PaletteDef[] = [
   { id: "alternate", hue: 42, saturate: 1.05, brightness: 1.12 },
 ];
 
+export const GORR_PALETTES: PaletteDef[] = [
+  { id: "default", hue: 0, saturate: 1, brightness: 1 },
+  { id: "alternate", hue: 165, saturate: 0.82, brightness: 1.08 },
+];
+
+export const SHAI_PALETTES: PaletteDef[] = [
+  { id: "default", hue: 0, saturate: 1, brightness: 1 },
+  { id: "alternate", hue: 225, saturate: 0.9, brightness: 1.1 },
+];
+
 export function paletteAt(list: PaletteDef[] | undefined, index: number): PaletteDef {
   const l = list && list.length ? list : DEFAULT_PALETTES;
   const i = ((index % l.length) + l.length) % l.length;

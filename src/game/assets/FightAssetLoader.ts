@@ -97,7 +97,7 @@ export async function loadFightAssets(
         }
         const error = e instanceof Error ? e.message : String(e);
         failed.push({ url: job.url, error });
-        if (job.critical) criticalFailed.push({ url: job.url, error });
+        if (job.critical) { criticalFailed.push({ url: job.url, error }); throw new Error(`Asset crítico falhou: ${job.url}`); }
       }
       done += 1;
       report(done, job.url);

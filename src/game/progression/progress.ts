@@ -1,6 +1,6 @@
 import { higherDifficulty, type Difficulty } from "../core/config";
 import { getSave, patchSave, emptyCharacterProgress, type SaveData } from "../core/save";
-import { INITIAL_IDS, ROSTER_SLOTS, slotById } from "./rosterSlots";
+import { INITIAL_IDS, PLAYABLE_INITIAL_IDS, ROSTER_SLOTS, slotById } from "./rosterSlots";
 import { isUnlocked, isRevealed, pendingSecretFights, reqMet } from "./evaluate";
 import { flushRewards, debugGrantAllRewards } from "./rewards";
 import { REWARDS } from "./rewardsCatalog";
@@ -142,7 +142,7 @@ export function progressSnapshot(): ProgressSnapshot {
   const rewardsGranted = (save.grantedRewards ?? []).length;
   const rewardTotal = REWARDS.length;
   const fighterShare = unlocked / total;
-  const arcadeShare = Math.min(1, arcadeClears / INITIAL_IDS.length);
+  const arcadeShare = Math.min(1, arcadeClears / Math.max(1, PLAYABLE_INITIAL_IDS.length));
   const bloodShare = Math.min(1, blood / 20);
   const secretShare = Math.min(1, secrets / 2);
   const rewardShare = rewardTotal ? rewardsGranted / rewardTotal : 0;

@@ -1,22 +1,7 @@
 import type { AccelMode, QualityPreset, RendererKind } from "./config";
 
-export function detectRenderer(accel: AccelMode): RendererKind {
-  if (typeof document === "undefined" || accel === "off") return "canvas2d";
-  const preferGpu = accel === "on" || accel === "auto";
-  if (!preferGpu) return "canvas2d";
-  try {
-    if ("gpu" in navigator) {
-      return "webgpu";
-    }
-  } catch {
-    /* ignore */
-  }
-  try {
-    const c = document.createElement("canvas");
-    if (c.getContext("webgl2") || c.getContext("webgl")) return "webgl";
-  } catch {
-    /* ignore */
-  }
+/** Canvas 2D may be GPU accelerated by the browser; no WebGL/WebGPU backend exists yet. */
+export function detectRenderer(_accel: AccelMode): RendererKind {
   return "canvas2d";
 }
 
@@ -41,7 +26,7 @@ export function recommendQuality(): QualityPreset {
   const score = (cores >= 8 ? 2 : cores >= 4 ? 1 : 0) + (mem >= 8 ? 2 : mem >= 4 ? 1 : 0) + gpuScore;
   if (score <= 2) return "low";
   if (score <= 4) return "medium";
-  if (score <= 6) return "high";
+  if (score <= 5) return "high";
   return "ultra";
 }
 

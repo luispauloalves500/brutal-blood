@@ -8,6 +8,7 @@ export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, sprites: 
     time: f.stateTime,
     attack: f.attack,
     attackFrame: f.attackFrame,
+    squash: f.impactSquash,
   });
   if (!drawn) {
   ctx.save();
@@ -27,6 +28,8 @@ export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, sprites: 
   if (f.data.id === "nyx") drawNyx(ctx, f);
   else if (f.data.id === "draven") drawDraven(ctx, f);
   else if (f.data.id === "vespera") drawVespera(ctx, f);
+  else if (f.data.id === "gorr") drawGorr(ctx, f);
+  else if (f.data.id === "shai") drawShai(ctx, f);
   else drawKharon(ctx, f);
 
   if (f.blocking) {
@@ -210,6 +213,57 @@ function drawVespera(ctx: CanvasRenderingContext2D, f: Fighter) {
   ctx.ellipse(40, 0, 36 + swing * 10, 10, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+}
+
+function drawGorr(ctx: CanvasRenderingContext2D, f: Fighter) {
+  // Identity lock: long hair + heavy armor + greatsword. Never bald/shirtless.
+  const c = f.hitFlash > 0 ? "#fff" : f.data.color;
+  const swing = attackSwing(f);
+  ctx.fillStyle = "#241610";
+  ctx.fillRect(10, 108, 26, 42);
+  ctx.fillRect(42, 108, 26, 42);
+  ctx.fillStyle = c;
+  ctx.shadowColor = f.data.accent;
+  ctx.shadowBlur = 12;
+  ctx.fillRect(8, 38, 60, 76);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#6a4a32";
+  ctx.fillRect(0, 36, 24, 24);
+  ctx.fillRect(52, 36, 24, 24);
+  ctx.fillStyle = f.data.accent;
+  ctx.fillRect(14, 64, 48, 8);
+  ctx.fillStyle = "#c4a07a";
+  ctx.beginPath(); ctx.arc(38, 22, 13, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#1a1210";
+  ctx.beginPath();
+  ctx.moveTo(20, 14);
+  ctx.lineTo(12, 86);
+  ctx.lineTo(24, 88);
+  ctx.lineTo(28, 26);
+  ctx.lineTo(38, 6);
+  ctx.lineTo(56, 16);
+  ctx.lineTo(66, 84);
+  ctx.lineTo(54, 86);
+  ctx.lineTo(50, 22);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillRect(28, 28, 18, 16);
+  ctx.save(); ctx.translate(62, 46); ctx.rotate(-0.55 + swing);
+  ctx.fillStyle = "#3a2a20"; ctx.fillRect(-6, -10, 18, 16);
+  ctx.fillStyle = "#c8c4bc"; ctx.fillRect(10, -12, 94, 18);
+  ctx.fillStyle = "#e8e4dc"; ctx.fillRect(18, -6, 78, 5);
+  ctx.restore();
+}
+
+function drawShai(ctx: CanvasRenderingContext2D, f: Fighter) {
+  const c = f.hitFlash > 0 ? "#fff" : f.data.color;
+  const swing = attackSwing(f);
+  ctx.fillStyle = c; ctx.shadowColor = f.data.accent; ctx.shadowBlur = 16;
+  ctx.fillRect(22, 34, 34, 82); ctx.beginPath(); ctx.arc(39, 20, 15, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0; ctx.fillStyle = "#160d12"; ctx.fillRect(18, 112, 18, 40); ctx.fillRect(44, 112, 18, 40);
+  ctx.save(); ctx.translate(54, 58); ctx.rotate(-0.35 + swing);
+  ctx.fillStyle = "#d8d8e0"; ctx.fillRect(0, -2, 72, 4);
+  ctx.fillStyle = f.data.accent; ctx.fillRect(60, -5, 22, 10); ctx.restore();
 }
 
 function attackSwing(f: Fighter) {

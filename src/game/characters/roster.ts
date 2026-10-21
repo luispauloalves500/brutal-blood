@@ -1,13 +1,10 @@
 import type { CharacterDef, RosterEntry } from "./types";
-import { kharon } from "./kharon";
-import { nyx } from "./nyx";
-import { draven } from "./draven";
-import { vespera } from "./vespera";
+import { PLAYABLE_FIGHTERS, requireFighterContent } from "../content/registry";
 import { ROSTER_SLOTS } from "../progression/rosterSlots";
 
-export const playable: CharacterDef[] = [kharon, nyx, draven, vespera];
+export const playable: CharacterDef[] = [...PLAYABLE_FIGHTERS];
 
-/** Legacy 8-entry list kept for AI ladders. UI uses ROSTER_SLOTS. */
+/** UI roster uses the 20 progression slots; implemented fighters resolve from the content registry. */
 export const roster: RosterEntry[] = ROSTER_SLOTS.map((s) => {
   const live = playable.find((p) => p.id === s.id);
   if (live) return live;
@@ -24,9 +21,7 @@ export const roster: RosterEntry[] = ROSTER_SLOTS.map((s) => {
 });
 
 export function getFighter(id: string): CharacterDef {
-  const f = playable.find((p) => p.id === id);
-  if (!f) throw new Error(`Lutador indisponível: ${id}`);
-  return f;
+  return requireFighterContent(id).def;
 }
 
 export function isPlayable(entry: RosterEntry): entry is CharacterDef {

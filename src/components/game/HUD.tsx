@@ -2,7 +2,7 @@ import type { HudSnap } from "@/game/combat/Match";
 
 export function HUD({ hud }: { hud: HudSnap | null }) {
   if (!hud) return null;
-  const t = hud.mode === "training" ? "∞" : String(hud.timer).padStart(2, "0");
+  const t = (hud.mode === "training" || hud.mode === "challenge") ? "∞" : String(hud.timer).padStart(2, "0");
   const cpuTag = hud.mode === "versus" ? "PLAYER 2" : "CPU";
   return (
     <div className="pointer-events-none absolute inset-x-[3%] top-4 z-10 grid grid-cols-[1fr_7rem_1fr] items-start gap-3 sm:gap-5">
@@ -12,6 +12,7 @@ export function HUD({ hud }: { hud: HudSnap | null }) {
         <div className="text-3xl tabular-nums leading-none text-bone sm:text-5xl">{t}</div>
       </div>
       <FighterHud side="right" snap={hud.p2} low={hud.lowLife.p2} superReady={hud.superReady.p2} tag={cpuTag} winsNeeded={hud.winsNeeded} />
+      {hud.challenge && <div className="col-span-3 mt-3 rounded border border-ember bg-ink/90 p-3 text-center text-sm text-bone">{hud.challenge}</div>}
       {hud.combo && (
         <div className="col-span-3 mt-2 justify-self-center font-display text-center">
           <div className="text-2xl tracking-widest text-blood">{hud.combo.hits} HITS</div>
@@ -33,8 +34,14 @@ export function HUD({ hud }: { hud: HudSnap | null }) {
         </div>
       )}
       {hud.message && (
-        <div className="pointer-events-none absolute left-1/2 top-[46vh] z-20 w-max -translate-x-1/2 -translate-y-1/2 font-display text-4xl tracking-[0.14em] text-bone sm:text-6xl"
-          style={{ textShadow: "0 6px 0 #000, 0 0 28px #a90000" }}>
+        <div className="pointer-events-none absolute left-1/2 top-[46vh] z-20 w-max -translate-x-1/2 -translate-y-1/2 font-display tracking-[0.14em] text-bone"
+          style={{
+            fontSize: hud.finish ? "clamp(1.6rem, 5vw, 3.4rem)" : "clamp(2.2rem, 7vw, 4.6rem)",
+            textShadow: hud.message === "DERRAMA O SANGUE"
+              ? "0 6px 0 #3a0000, 0 0 36px #c9202b"
+              : "0 6px 0 #000, 0 0 28px #a90000",
+            letterSpacing: hud.message === "LUTAR" || hud.message === "FINAL ROUND" ? "0.42em" : "0.14em",
+          }}>
           {hud.message}
         </div>
       )}

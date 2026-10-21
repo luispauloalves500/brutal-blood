@@ -1,16 +1,10 @@
-import { kharonAssets } from "./characters/kharon";
-import { nyxAssets } from "./characters/nyx";
-import { dravenAssets } from "./characters/draven";
-import { vesperaAssets } from "./characters/vespera";
+import { getFighterContent } from "../content/registry";
 import type { CharacterAssetManifest } from "./types";
 
-const ALL: Record<string, CharacterAssetManifest> = {
-  kharon: kharonAssets,
-  nyx: nyxAssets,
-  draven: dravenAssets,
-  vespera: vesperaAssets,
-};
-
 export function getCharacterAssets(id: string): CharacterAssetManifest {
-  return ALL[id] ?? kharonAssets;
+  const found = getFighterContent(id);
+  if (found) return found.assets;
+  const fallback = getFighterContent("kharon");
+  if (!fallback) throw new Error("Kharon asset fallback missing from content registry");
+  return fallback.assets;
 }

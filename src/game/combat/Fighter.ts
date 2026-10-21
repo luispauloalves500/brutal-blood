@@ -116,6 +116,13 @@ export class Fighter {
 
   move(dir: number) {
     if (!this.canAct() || this.blocking || this.crouching || !this.grounded) return;
+    const min = 30;
+    const max = GAME.WIDTH - 30 - this.w;
+    if ((dir < 0 && this.x <= min + 1) || (dir > 0 && this.x >= max - 1)) {
+      this.vx = 0;
+      if (this.state === "walk" || this.state === "walkBack") this.state = "idle";
+      return;
+    }
     const toward = Math.sign(dir) === this.facing;
     const spd = toward ? this.data.stats.speed : this.data.stats.backSpeed;
     this.vx = dir * spd;
@@ -130,9 +137,13 @@ export class Fighter {
   }
 
   crouch(on: boolean) {
-    if (!this.grounded || this.blocking) return;
-    if (!this.canAct() && this.state !== "crouch") return;
+    if (!this.grounded) return;
+    if (!this.canAct() && this.state !== "crouch" && this.state !== "block") return;
     this.crouching = on;
+    if (this.blocking || this.state === "block") {
+      this.vx = 0;
+      return;
+    }
     if (on) {
       this.vx = 0;
       this.state = "crouch";
@@ -257,6 +268,26 @@ export class Fighter {
     return { dmg, blocked };
   }
 
+  /** Damage lands, the swing stays. Super and grab never call this. */
+  absorbArmor(move: MoveDef, fromX: number, scaled: number) {
+    const dmg = (move.damage * scaled) / this.data.stats.defense;
+    this.health = Math.max(0, this.health - dmg);
+    this.hitFlash = 0.16;
+    this.superMeter = Math.min(100, this.superMeter + 5);
+    this.meter = Math.min(100, this.meter + 4);
+    const dir = Math.sign(this.x - fromX) || -this.facing;
+    this.vx = dir * Math.min(70, move.knockback * 0.08);
+    if (this.health <= 0) {
+      this.state = "ko";
+      this.blocking = false;
+      this.attack = null;
+      this.vx = dir * 520;
+      this.vy = -520;
+      this.grounded = false;
+    }
+    return { dmg, blocked: false };
+  }
+
   gainOnHit(move: MoveDef, hits: number) {
     this.meter = Math.min(100, this.meter + (move.meterGain || 0));
     this.superMeter = Math.min(100, this.superMeter + (move.superGain || 8) + hits * 2);
@@ -298,6 +329,9 @@ export class Fighter {
       this.airHits = 0;
       this.juggleGravity = 1;
       if (this.state === "jump") this.state = "idle";
+      if (wasAir && this.state !== "ko" && this.state !== "knockdown" && this.state !== "wakeup") {
+        this.impactSquash = Math.max(this.impactSquash, 0.42);
+      }
       if (this.state === "knockdown" && this.stun <= 0) {
         this.state = "wakeup";
         this.stateTime = 0;
@@ -347,12 +381,39 @@ export class Fighter {
     const a = this.attack;
     if (this.attackFrame < a.startup || this.attackFrame >= a.startup + a.active) return null;
     if (a.projectile) return null;
-    const range = a.range * this.data.stats.range;
-    const crouch = this.state === "crouch" || a.height === "low";
-    const y = this.y + (crouch ? 70 : a.antiAir ? -10 : 22);
-    const h = a.antiAir ? this.h + 20 : this.h - (crouch ? 70 : 46);
+    const airborne = !this.grounded;
+    const range = a.range * this.data.stats.range * (airborne ? 0.78 : 1);
+    const light = a.button === "light" || a.button === "kickLight";
+    const heavy = a.button === "heavy" || a.button === "kickHeavy" || a.type === "special" || a.type === "super";
+    let y: number;
+    let h: number;
+    if (a.grab && !airborne) {
+      y = this.y + this.h * 0.22;
+      h = this.h * 0.5;
+    } else if (a.antiAir) {
+      y = this.y - this.h * 0.18;
+      h = this.h * 0.72;
+    } else if (airborne) {
+      y = this.y + this.h * 0.18;
+      h = this.h * 0.42;
+    } else if (a.height === "low") {
+      y = this.y + this.h * 0.74;
+      h = this.h * 0.24;
+    } else if (a.overhead || a.height === "high") {
+      y = this.y + this.h * 0.02;
+      h = this.h * 0.48;
+    } else if (light) {
+      y = this.y + this.h * 0.28;
+      h = this.h * 0.36;
+    } else if (heavy) {
+      y = this.y + this.h * 0.1;
+      h = this.h * 0.72;
+    } else {
+      y = this.y + this.h * 0.2;
+      h = this.h * 0.5;
+    }
     return {
-      x: this.facing > 0 ? this.x + this.w - 8 : this.x - range,
+      x: this.facing > 0 ? this.x + this.w * 0.55 : this.x + this.w * 0.45 - range,
       y,
       w: range,
       h,
@@ -360,7 +421,7 @@ export class Fighter {
   }
 
   getHurtBox() {
-    const crouch = this.state === "crouch";
+    const crouch = this.crouching || this.state === "crouch";
     return {
       x: this.x + 8,
       y: this.y + (crouch ? 48 : 0),

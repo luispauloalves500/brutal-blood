@@ -2,6 +2,8 @@ import type { StageAssetManifest } from "./types";
 
 /** Backdrop/music src only when files exist under /stages/. */
 export const STAGE_ASSETS: Record<string, StageAssetManifest> = {
+  prison: { id: "prison", name: "Prisão Subterrânea" },
+  city: { id: "city", name: "Cidade em Ruínas" },
   abandoned: { id: "abandoned", name: "Arena Abandonada" },
   temple: { id: "temple", name: "Templo Sangrento" },
   industrial: { id: "industrial", name: "Distrito Industrial" },

@@ -24,6 +24,7 @@ export class Input {
   private virtualPressed = new Set<ActionName>();
   private injected = new Set<string>();
   private gamepadActions: [Set<ActionName>, Set<ActionName>] = [new Set(), new Set()];
+  private gamepadPressed: [Set<ActionName>, Set<ActionName>] = [new Set(), new Set()];
   private gamepadPrev: [Set<ActionName>, Set<ActionName>] = [new Set(), new Set()];
   private pads: (Gamepad | null)[] = [null, null];
   rumble = true;
@@ -36,6 +37,18 @@ export class Input {
   lastDevice: "keyboard" | "gamepad" = "keyboard";
   history: { label: string; t: number }[] = [];
   frame = 0;
+  private replaySlots = new Map<string, { down: Set<ActionName>; pressed: Set<ActionName> }>();
+
+  sample(slot: "p1" | "p2"): ActionName[] {
+    return ALL_ACTIONS.filter((a) => this.isDown(slot, a) ||
+      (this.bindings[slot][a] ?? []).some((c) => this.pressed.has(c)));
+  }
+
+  replay(slot: "p1" | "p2", actions: ActionName[] | null) {
+    if (!actions) { this.replaySlots.delete(slot); return; }
+    const previous = this.replaySlots.get(slot)?.down ?? new Set();
+    this.replaySlots.set(slot, { down: new Set(actions), pressed: new Set(actions.filter((a) => !previous.has(a))) });
+  }
 
   constructor(bindings: Bindings = structuredClone(DEFAULT_BINDINGS)) {
     this.bindings = bindings;
@@ -50,6 +63,8 @@ export class Input {
         this.finishRemap(e.code);
         return;
       }
+      if ((e.target as HTMLElement)?.closest?.("input, select, textarea, [contenteditable=true]")) return;
+      this.lastDevice = "keyboard";
       if (!this.keys.has(e.code)) this.pressed.add(e.code);
       this.keys.add(e.code);
       if (this.isGameCode(e.code)) e.preventDefault();
@@ -139,7 +154,10 @@ export class Input {
       this.lastDevice = "gamepad";
       const dest = this.gamepadActions[i];
       for (const action of ALL_ACTIONS) {
-        if (this.readPad(gp, action)) dest.add(action);
+        if (this.readPad(gp, action)) {
+          dest.add(action);
+          if (!this.gamepadPrev[i].has(action)) this.gamepadPressed[i].add(action);
+        }
       }
     }
   }
@@ -172,6 +190,7 @@ export class Input {
   }
 
   isDown(slot: "p1" | "p2", action: ActionName): boolean {
+    if (this.replaySlots.has(slot) && action !== "pause") return this.replaySlots.get(slot)!.down.has(action);
     if (this.virtual.has(action) && slot === "p1") return true;
     const codes = this.bindings[slot][action] ?? [];
     for (const c of codes) {
@@ -182,6 +201,12 @@ export class Input {
   }
 
   consume(slot: "p1" | "p2", action: ActionName): boolean {
+    const replay = this.replaySlots.get(slot);
+    if (replay && action !== "pause") {
+      const pressed = replay.pressed.delete(action);
+      if (pressed) this.pushHistory(action);
+      return pressed;
+    }
     if (this.virtualPressed.has(action) && slot === "p1") {
       this.virtualPressed.delete(action);
       this.pushHistory(action);
@@ -196,7 +221,8 @@ export class Input {
       }
     }
     const padIndex = slot === "p1" ? 0 : 1;
-    if (this.gamepadActions[padIndex].has(action) && !this.gamepadPrev[padIndex].has(action)) {
+    if (this.gamepadPressed[padIndex].has(action)) {
+      this.gamepadPressed[padIndex].delete(action);
       this.pushHistory(action);
       return true;
     }
@@ -226,16 +252,20 @@ export class Input {
   }
 
   endFrame() {
+    this.gamepadPressed.forEach((set) => set.clear());
+    this.replaySlots.forEach((s) => s.pressed.clear());
     this.pressed.clear();
     this.virtualPressed.clear();
   }
 
   clearAll() {
+    this.replaySlots.clear();
     this.keys.clear();
     this.pressed.clear();
     this.virtual.clear();
     this.virtualPressed.clear();
     this.injected.clear();
+    this.gamepadPressed.forEach((set) => set.clear());
   }
 
   vibrate(slot: "p1" | "p2", duration = 70, strong = 0.5, weak = 0.25) {
@@ -247,7 +277,7 @@ export class Input {
       strongMagnitude: strong,
       weakMagnitude: weak,
       startDelay: 0,
-    });
+    })?.catch(() => { /* Some controllers expose an unsupported actuator. */ });
   }
 
   padConnected(slot: "p1" | "p2") {

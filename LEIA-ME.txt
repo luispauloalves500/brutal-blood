@@ -1,0 +1,36 @@
+BRUTAL BLOOD 0.21.0 — COMO JOGAR / PUBLICAR
+
+JOGAR A VERSAO COMPILADA
+1. Extraia todo o ZIP.
+2. Tenha Node.js 22 ou superior instalado.
+3. Windows: abra INICIAR.bat.
+4. Linux/macOS: npm run play
+   (desenvolvimento: npm run dev)
+
+Nao abra dist/index.html diretamente por file://.
+
+EDITAR
+npm ci
+npm run dev
+
+TESTAR
+npm test
+npm run typecheck
+
+BUILD
+npm run build
+O build final fica em dist/.
+
+GITHUB PAGES
+O projeto inclui .github/workflows/pages.yml.
+No repositorio, configure Settings > Pages > Source como GitHub Actions.
+
+OFFLINE
+Depois do primeiro carregamento completo, o nucleo, a interface e os 6 personagens iniciais ficam no cache versionado 0.21.0.
+
+P1: A/D mover; W pular; S agachar; J leve; U medio; K pesado;
+N chute leve; M chute pesado; L especial; O Super; I defesa;
+Espaco agarrao; P provocacao; Esc pausa.
+
+P2: setas; numpad 1/4/2 socos; 5/6 chutes; 3 especial;
+9 Super; 0 defesa; 7 agarrao; 8 provocacao.

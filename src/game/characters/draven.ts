@@ -1,3 +1,4 @@
+import { assetUrl } from "../assets/url";
 import type { CharacterDef } from "./types";
 
 const gatling = ["medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
@@ -9,7 +10,7 @@ export const draven: CharacterDef = {
   style: "Boxe sujo — rushdown curto, armadura e command grab",
   color: "#8a7a6a",
   accent: "#d9c4a8",
-  portrait: "/fighters/draven.webp",
+  portrait: assetUrl("/fighters/draven.webp"),
   stats: {
     speed: 300,
     backSpeed: 210,

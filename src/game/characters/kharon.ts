@@ -1,3 +1,4 @@
+import { assetUrl } from "../assets/url";
 import type { CharacterDef } from "./types";
 
 const gatling = ["medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
@@ -9,7 +10,7 @@ export const kharon: CharacterDef = {
   style: "Execução brutal — pressão curta, antiaéreo e confirms pesados",
   color: "#c92b35",
   accent: "#ff8a61",
-  portrait: "/fighters/kharon.webp",
+  portrait: assetUrl("/fighters/kharon.webp"),
   stats: {
     speed: 255,
     backSpeed: 175,

@@ -7,6 +7,7 @@ export class Camera {
   private targetX = 0;
   private targetZoom = 1;
   private trauma = 0;
+  private zoomBoost = 0;
   private shakeMul = 1;
   private impulseX = 0;
   private bounds = { w: GAME.WIDTH, h: GAME.HEIGHT };
@@ -20,7 +21,7 @@ export class Camera {
   }
 
   punch(zoom = 1.12) {
-    this.targetZoom = zoom;
+    this.zoomBoost = Math.max(this.zoomBoost, Math.min(.18, Math.max(.04, zoom - 1)));
   }
 
   /** Directional kick opposite the hit, lerps back. */
@@ -34,35 +35,37 @@ export class Camera {
     this.zoom = 1;
     this.targetZoom = 1;
     this.trauma = 0;
+    this.zoomBoost = 0;
     this.impulseX = 0;
   }
 
   follow(ax: number, bx: number, cinematic = false) {
-    const mid = (ax + bx) / 2;
-    this.targetX = mid - GAME.WIDTH / 2;
-    const dist = Math.abs(ax - bx);
-    const z = cinematic ? 1.28 : dist < 280 ? 1.08 : dist > 700 ? 0.98 : 1;
-    if (!cinematic) this.targetZoom = z;
-    this.targetX = Math.max(-80, Math.min(80, this.targetX));
+    const left = Math.min(ax, bx) - 36;
+    const right = Math.max(ax, bx) + 112;
+    const mid = (left + right) / 2;
+    const dist = right - left;
+    const z = cinematic ? 1.14 : dist < 240 ? 1.1 : dist > 680 ? 1.0 : 1.05;
+    this.targetZoom = z;
+    this.targetX = Math.max(-40, Math.min(40, mid - GAME.WIDTH / 2));
   }
 
   update(dt: number) {
-    const k = 1 - Math.exp(-8 * dt);
+    const k = 1 - Math.exp(-7.2 * dt);
     this.x += (this.targetX - this.x) * k;
-    this.zoom += (this.targetZoom - this.zoom) * (1 - Math.exp(-6 * dt));
-    this.targetZoom += (1 - this.targetZoom) * (1 - Math.exp(-1.6 * dt));
-    this.trauma = Math.max(0, this.trauma - dt * 1.8);
-    this.impulseX += (0 - this.impulseX) * (1 - Math.exp(-11 * dt));
+    this.zoom += (this.targetZoom + this.zoomBoost - this.zoom) * (1 - Math.exp(-5.4 * dt));
+    this.zoomBoost *= Math.exp(-5 * dt);
+    this.trauma = Math.max(0, this.trauma - dt * 2.2);
+    this.impulseX += (0 - this.impulseX) * (1 - Math.exp(-10 * dt));
   }
 
   apply(ctx: CanvasRenderingContext2D) {
     const shake = this.trauma * this.trauma;
-    const ox = this.x + this.impulseX + (Math.random() * 2 - 1) * 18 * shake;
-    const oy = (Math.random() * 2 - 1) * 12 * shake;
-    const rot = (Math.random() * 2 - 1) * 0.012 * shake;
-    ctx.translate(GAME.WIDTH / 2, GAME.HEIGHT / 2);
+    const ox = this.x + this.impulseX + (Math.random() * 2 - 1) * 8 * shake;
+    const oy = (Math.random() * 2 - 1) * 5 * shake;
+    const rot = (Math.random() * 2 - 1) * 0.006 * shake;
+    ctx.translate(GAME.WIDTH / 2, GAME.FLOOR - 80);
     ctx.rotate(rot);
     ctx.scale(this.zoom, this.zoom);
-    ctx.translate(-GAME.WIDTH / 2 - ox, -GAME.HEIGHT / 2 - oy);
+    ctx.translate(-GAME.WIDTH / 2 - ox, -(GAME.FLOOR - 80) - oy);
   }
 }

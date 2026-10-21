@@ -1,6 +1,6 @@
 import { difficultyAtLeast, type Difficulty } from "../core/config";
 import type { SaveData } from "../core/save";
-import { INITIAL_IDS, ROSTER_SLOTS, slotById } from "./rosterSlots";
+import { PLAYABLE_INITIAL_IDS, ROSTER_SLOTS, slotById } from "./rosterSlots";
 import type { UnlockReq, SecretVisibility } from "./types";
 
 export function reqMet(req: UnlockReq, save: SaveData): boolean {
@@ -11,7 +11,7 @@ export function reqMet(req: UnlockReq, save: SaveData): boolean {
     case "arcadeClearCount":
       return clears.length >= (req.value ?? 1);
     case "arcadeClearAllInitials":
-      return INITIAL_IDS.every((id) => clears.includes(id));
+      return PLAYABLE_INITIAL_IDS.every((id) => clears.includes(id));
     case "arcadeNoContinue":
       return (save.noContinueClears ?? []).length > 0;
     case "arcadeDifficulty":
@@ -37,7 +37,7 @@ export function reqProgress(req: UnlockReq, save: SaveData): { current: number; 
     case "arcadeClearCount":
       return { current: clears.length, needed: req.value ?? 1 };
     case "arcadeClearAllInitials":
-      return { current: INITIAL_IDS.filter((id) => clears.includes(id)).length, needed: INITIAL_IDS.length };
+      return { current: PLAYABLE_INITIAL_IDS.filter((id) => clears.includes(id)).length, needed: PLAYABLE_INITIAL_IDS.length };
     case "bloodFinishes":
       return { current: save.bloodFinishCount ?? 0, needed: req.value ?? 1 };
     case "arcadeNoContinue":

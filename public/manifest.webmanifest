@@ -1,0 +1,16 @@
+{
+  "name": "BRUTAL BLOOD",
+  "short_name": "BRUTAL BLOOD",
+  "description": "Jogo de luta 2D offline-first para navegador.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#09070b",
+  "theme_color": "#09070b",
+  "categories": ["games"],
+  "icons": [
+    { "src": "./favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./icons/icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ]
+}

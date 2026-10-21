@@ -190,12 +190,22 @@ export const assets = new AssetManager();
 
 function loadHtmlImage(url: string, signal?: AbortSignal): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new DOMException("Aborted", "AbortError")); return; }
     const img = new Image();
     img.crossOrigin = "anonymous";
-    const fail = () => reject(new Error(`image ${url}`));
-    img.onload = () => resolve(img);
-    img.onerror = fail;
-    signal?.addEventListener("abort", fail, { once: true });
+    let settled = false;
+    const cleanup = () => {
+      clearTimeout(timer); img.onload = null; img.onerror = null;
+      signal?.removeEventListener("abort", abort);
+    };
+    const fail = (error: Error) => {
+      if (settled) return; settled = true; cleanup(); img.src = ""; reject(error);
+    };
+    const abort = () => fail(new DOMException("Aborted", "AbortError"));
+    const timer = setTimeout(() => fail(new Error(`Tempo de carregamento excedido: ${url}`)), 15000);
+    img.onload = () => { if (settled) return; settled = true; cleanup(); resolve(img); };
+    img.onerror = () => fail(new Error(`Não foi possível carregar: ${url}`));
+    signal?.addEventListener("abort", abort, { once: true });
     img.src = url;
   });
 }

@@ -1,6 +1,8 @@
+import { GAME_VERSION } from "./version";
+
 /** Single global config. Never redeclare DEBUG or these constants in other files. */
 export const GAME = {
-  VERSION: "0.9.2",
+  VERSION: GAME_VERSION,
   WIDTH: 1280,
   HEIGHT: 720,
   FPS: 60,
@@ -81,6 +83,9 @@ export type GraphicsSettings = {
   bloom: boolean;
   stageFx: boolean;
   debugSprites: boolean;
+  reduceFlashes: boolean;
+  highContrast: boolean;
+  simplifiedCommands: boolean;
 };
 
 export type AudioSettings = {
@@ -107,6 +112,9 @@ export const DEFAULT_GRAPHICS: GraphicsSettings = {
   bloom: true,
   stageFx: true,
   debugSprites: false,
+  reduceFlashes: false,
+  highContrast: false,
+  simplifiedCommands: true,
 };
 
 export const QUALITY_PRESETS: Record<QualityPreset, Partial<GraphicsSettings>> = {

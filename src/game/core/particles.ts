@@ -31,6 +31,23 @@ export class ParticlePool {
     }
   }
 
+  blood(x: number, y: number, n: number) {
+    if (!this.enabled) return;
+    for (let k = 0; k < n; k++) {
+      const p = this.list[this.i];
+      this.i = (this.i + 1) % POOL;
+      const a = -0.4 + Math.random() * 2.2;
+      const sp = 60 + Math.random() * 220;
+      p.x = x; p.y = y;
+      p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp - 40;
+      p.life = p.max = 0.28 + Math.random() * 0.4;
+      p.size = 2 + Math.random() * 4;
+      p.color = Math.random() > 0.4 ? "#c9202b" : "#7a1018";
+      p.gravity = 980;
+      p.spark = false;
+    }
+  }
+
   ember(x: number, y: number, n: number) {
     if (!this.enabled) return;
     for (let k = 0; k < n; k++) {

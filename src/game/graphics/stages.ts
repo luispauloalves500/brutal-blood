@@ -1,3 +1,5 @@
+import { drawStageDepth, drawStageTrim } from "./stageDetails";
+
 export type StageDef = {
   id: string;
   name: string;
@@ -5,7 +7,7 @@ export type StageDef = {
   haze: string;
   floor: string;
   accent: string;
-  props: "ruins" | "temple" | "industrial" | "forest" | "cathedral" | "fortress";
+  props: "ruins" | "temple" | "industrial" | "forest" | "cathedral" | "fortress" | "prison" | "city";
 };
 
 export const STAGES: StageDef[] = [
@@ -15,10 +17,12 @@ export const STAGES: StageDef[] = [
   { id: "forest", name: "Floresta Profana", sky: ["#0c1410", "#16301c", "#060806"], haze: "#1e4a28", floor: "#0c140e", accent: "#245030", props: "forest" },
   { id: "cathedral", name: "Catedral Negra", sky: ["#100c18", "#241838", "#08060c"], haze: "#3a2860", floor: "#100c14", accent: "#2a2040", props: "cathedral" },
   { id: "fortress", name: "Fortaleza Final", sky: ["#140c0c", "#401414", "#080404"], haze: "#801818", floor: "#140808", accent: "#501010", props: "fortress" },
+  { id: "prison", name: "Prisão Subterrânea", sky: ["#090e15", "#172937", "#05080d"], haze: "#347589", floor: "#0b1119", accent: "#314656", props: "prison" },
+  { id: "city", name: "Cidade em Ruínas", sky: ["#1b1011", "#59352c", "#10090b"], haze: "#a45336", floor: "#191114", accent: "#64483c", props: "city" },
 ];
 
 export function getStage(id: string): StageDef {
-  return STAGES.find((s) => s.id === id) ?? STAGES[0];
+  return STAGES.find((s) => s.id === id) ?? STAGES.find((s) => s.id === "abandoned")!;
 }
 
 export function drawStage(ctx: CanvasRenderingContext2D, stage: StageDef, t: number, camX: number, fx: boolean) {
@@ -44,6 +48,7 @@ export function drawStage(ctx: CanvasRenderingContext2D, stage: StageDef, t: num
     ctx.fill();
   }
 
+  drawStageDepth(ctx, stage, t, camX, fx);
   ctx.save();
   ctx.translate(-par, 0);
   drawProps(ctx, stage);
@@ -67,11 +72,29 @@ export function drawStage(ctx: CanvasRenderingContext2D, stage: StageDef, t: num
   }
   ctx.fillStyle = stage.accent;
   ctx.fillRect(-80, 610, 1440, 10);
+  drawStageTrim(ctx, stage, t, fx);
 }
 
 function drawProps(ctx: CanvasRenderingContext2D, stage: StageDef) {
   ctx.fillStyle = "#291019";
   switch (stage.props) {
+    case "prison":
+      for (const x of [80, 400, 760, 1080]) {
+        ctx.fillStyle="#050a10";ctx.fillRect(x,230,180,370);
+        ctx.strokeStyle="#354959";ctx.lineWidth=7;
+        for(let bar=0;bar<6;bar++){ctx.beginPath();ctx.moveTo(x+15+bar*30,230);ctx.lineTo(x+15+bar*30,600);ctx.stroke();}
+        ctx.fillStyle="#243442";ctx.fillRect(x-8,225,196,18);ctx.fillRect(x-8,580,196,16);
+      }
+      break;
+    case "city":
+      for(let i=0;i<7;i++) {
+        const x=i*200-60,top=160+(i*97%170);
+        ctx.fillStyle=i%2?"#291e23":"#34232a";ctx.fillRect(x,top,135,620-top);
+        ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x+32,top-30);ctx.lineTo(x+56,top+12);ctx.lineTo(x+108,top-15);ctx.lineTo(x+135,top);ctx.fill();
+        ctx.fillStyle="#c8774945";
+        for(let row=0;row<4;row++) for(let col=0;col<3;col++) if((row+col+i)%3)ctx.fillRect(x+15+col*37,top+35+row*65,18,30);
+      }
+      break;
     case "ruins":
       for (let x = -30; x < 1320; x += 86) ctx.fillRect(x, 335, 48, 225 + (x % 172 ? 28 : 0));
       break;

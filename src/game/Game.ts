@@ -38,6 +38,7 @@ export class Game {
   private lastDraw = 0;
   private running = false;
   private onVis?: () => void;
+  private onBlur?: () => void;
 
   constructor(opts: GameStart) {
     this.canvas = opts.canvas;
@@ -94,9 +95,17 @@ export class Game {
       this.raf = requestAnimationFrame(loop);
     };
     this.raf = requestAnimationFrame(loop);
-    this.onVis = () => {
-      if (!document.hidden) this.last = performance.now();
+    this.onBlur = () => {
+      this.input.clearAll();
+      this.acc = 0;
+      if (this.match.state !== "ended") this.match.togglePause(true);
     };
+    this.onVis = () => {
+      if (document.hidden) this.onBlur?.();
+      this.last = performance.now();
+      this.acc = 0;
+    };
+    window.addEventListener("blur", this.onBlur);
     document.addEventListener("visibilitychange", this.onVis);
   }
 
@@ -106,6 +115,8 @@ export class Game {
 
   destroy() {
     this.running = false;
+    this.match.dispose();
+    if (this.onBlur) window.removeEventListener("blur", this.onBlur);
     cancelAnimationFrame(this.raf);
     if (this.onVis) document.removeEventListener("visibilitychange", this.onVis);
     if (typeof window !== "undefined") delete window.__controlsTest;
@@ -127,6 +138,7 @@ export class Game {
       getSpriteFallback: () => this.match.sprites[0]?.lastFallback ?? false,
       getSpriteMode: () => this.match.sprites[0]?.lastMode ?? "",
       getPalette: () => `${this.match.p1.paletteId}/${this.match.p2.paletteId}`,
+      getFacing: () => this.match.p1.facing,
       killP2: () => { this.match.p2.health = 0; },
       setKeys: (codes: string[]) => this.input.injectCodes(codes),
       setSteer: (v: number) => {
@@ -155,6 +167,7 @@ declare global {
       getSpriteFallback?: () => boolean;
       getSpriteMode?: () => string;
       getPalette?: () => string;
+      getFacing?: () => number;
       killP2?: () => void;
       setKeys: (codes: string[]) => void;
       setSteer?: (v: number) => void;

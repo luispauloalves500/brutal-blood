@@ -1,3 +1,4 @@
+import { assetUrl } from "../assets/url";
 import type { CharacterDef } from "./types";
 
 const gatling = ["medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
@@ -9,7 +10,7 @@ export const vespera: CharacterDef = {
   style: "Zoning — véus, altares e controle de espaço",
   color: "#7a1230",
   accent: "#e35a7a",
-  portrait: "/fighters/vespera.webp",
+  portrait: assetUrl("/fighters/vespera.webp"),
   difficulty: 4,
   stats: {
     speed: 265,
