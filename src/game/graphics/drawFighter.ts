@@ -46,6 +46,13 @@ export function drawFighter(ctx: CanvasRenderingContext2D, f: Fighter, sprites: 
     ctx.globalCompositeOperation = "source-over";
   }
   ctx.restore();
+  } else if (f.state === "finish") {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const pulse = 0.2 + 0.15 * Math.sin(f.stateTime * 14);
+    ctx.fillStyle = `rgba(200, 30, 45, ${pulse})`;
+    ctx.fillRect(f.x - 10, f.y - 10, f.w + 20, f.h + 16);
+    ctx.restore();
   } else if (f.hitFlash > 0) {
     ctx.save();
     ctx.globalCompositeOperation = "lighter";

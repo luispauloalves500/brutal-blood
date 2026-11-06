@@ -1,7 +1,7 @@
 import { assetUrl } from "../assets/url";
 import type { CharacterDef } from "./types";
 
-const chain = ["medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
+const chain = ["light", "medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
 
 export const shai: CharacterDef = {
   id: "shai",
@@ -29,7 +29,7 @@ export const shai: CharacterDef = {
     { id:"s_i1", name:"Ponto Cego", level:"intermediate", sequence:["light","medium","special2","heavy"], description:"Reposiciona e pune a reação." },
     { id:"s_i2", name:"Lua Partida", level:"intermediate", sequence:["heavy","special3"], description:"Pesado cancelado na lâmina de sangue." },
     { id:"s_a1", name:"Olho Aberto", level:"advanced", sequence:["light","medium","special1","special3","super"], description:"Controle de tela até o Super." },
-    { id:"s_air", name:"Queda Silenciosa", level:"air", sequence:["aerial","medium"], description:"Ataque aéreo para pressão." },
+    { id:"s_air", name:"Queda Silenciosa", level:"air", sequence:["aerial","medium"], description:"Ataque aéreo para pressão.", route:"link" },
     { id:"s_p1", name:"Sem Testemunha", level:"punish", sequence:["heavy","special2","super"], description:"Punish longo com reposicionamento." },
   ],
   moves: {
@@ -39,9 +39,9 @@ export const shai: CharacterDef = {
     kickLight: { id:"kickLight", name:"Rasteira Rubra", type:"normal", button:"kickLight", damage:45, range:74, startup:5, active:4, recovery:9, hitStun:11, blockStun:6, knockback:85, priority:2, meterGain:7, superGain:3, cancelInto:["medium","heavy","special1"], height:"low", hitstop:3 },
     kickHeavy: { id:"kickHeavy", name:"Lua Baixa", type:"normal", button:"kickHeavy", damage:92, range:98, startup:11, active:5, recovery:17, hitStun:18, blockStun:11, knockback:240, priority:4, meterGain:11, superGain:6, cancelInto:["special2","special3","super"], height:"low", knockdown:true, hitstop:6 },
     aerial: { id:"aerial", name:"Fio Descendente", type:"aerial", button:"light", damage:68, range:100, startup:5, active:8, recovery:8, hitStun:12, blockStun:8, knockback:145, priority:3, meterGain:9, superGain:4, height:"high", airOk:true, hitstop:4 },
-    special1: { id:"special1", name:"Agulha Carmesim", type:"special", command:"236S", damage:92, range:520, startup:11, active:4, recovery:18, hitStun:13, blockStun:8, knockback:150, priority:4, meterGain:5, superGain:9, cost:25, height:"mid", projectile:"needle", cancelInto:["super"], hitstop:4 },
+    special1: { id:"special1", name:"Agulha Carmesim", type:"special", command:"236S", damage:92, range:520, startup:11, active:4, recovery:18, hitStun:13, blockStun:8, knockback:150, priority:4, meterGain:5, superGain:9, cost:25, height:"mid", projectile:"needle", cancelInto:["special3","super"], hitstop:4 },
     special2: { id:"special2", name:"Passo Fantasma", type:"special", command:"66L", damage:112, range:132, startup:7, active:6, recovery:17, hitStun:15, blockStun:8, knockback:190, priority:5, meterGain:5, superGain:10, cost:30, height:"mid", advance:900, invuln:5, cancelInto:["heavy","super"], hitstop:5 },
-    special3: { id:"special3", name:"Lua Sangrenta", type:"special", command:"214H", damage:124, range:430, startup:14, active:5, recovery:22, hitStun:16, blockStun:9, knockback:215, priority:5, meterGain:4, superGain:9, cost:35, height:"high", projectile:"veil", antiAir:true, hitstop:5 },
+    special3: { id:"special3", name:"Lua Sangrenta", type:"special", command:"214H", damage:124, range:430, startup:14, active:5, recovery:22, hitStun:16, blockStun:9, knockback:215, priority:5, meterGain:4, superGain:9, cost:35, height:"high", projectile:"veil", antiAir:true, cancelInto:["super"], hitstop:5 },
     super: { id:"super", name:"Olho do Eclipse", type:"super", command:"236236H", damage:330, range:560, startup:8, active:18, recovery:28, hitStun:29, blockStun:13, knockback:450, priority:8, meterGain:0, superGain:0, superCost:100, cost:0, height:"mid", hits:7, invuln:10, projectile:"veil", knockdown:true, hitstop:11 },
     throw: { id:"throw", name:"Corte pelas Costas", type:"throw", button:"throw", damage:135, range:48, startup:5, active:3, recovery:20, hitStun:0, blockStun:0, knockback:320, priority:9, meterGain:10, superGain:8, grab:true, knockdown:true, height:"mid", hitstop:7 },
     counter: { id:"counter", name:"Olho Antecipado", type:"counter", command:"22L", damage:88, range:82, startup:3, active:11, recovery:18, hitStun:17, blockStun:0, knockback:185, priority:7, meterGain:12, superGain:8, invuln:12, height:"mid", hitstop:6 },

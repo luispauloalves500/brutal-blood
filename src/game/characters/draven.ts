@@ -1,7 +1,7 @@
 import { assetUrl } from "../assets/url";
 import type { CharacterDef } from "./types";
 
-const gatling = ["medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
+const gatling = ["light", "medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
 
 export const draven: CharacterDef = {
   id: "draven",
@@ -49,10 +49,10 @@ export const draven: CharacterDef = {
     { id: "d_i1", name: "Passo e Gancho", level: "intermediate", sequence: ["light", "medium", "special1"], description: "Cancela o cruzado no Passo de Ferro." },
     { id: "d_i2", name: "Uppercut Sujo", level: "intermediate", sequence: ["kickLight", "medium", "special2"], description: "Baixo para o gancho antiaéreo." },
     { id: "d_a1", name: "Clinch Fatal", level: "advanced", sequence: ["light", "light", "heavy", "special3"], description: "Pressão até o command grab." },
-    { id: "d_air", name: "Gancho Voador", level: "air", sequence: ["aerial", "medium"], description: "Aéreo no cruzado no pushback." },
+    { id: "d_air", name: "Gancho Voador", level: "air", sequence: ["aerial", "medium"], description: "Aéreo no cruzado no pushback.", route: "link" },
     { id: "d_m1", name: "Armadura e Rajada", level: "meter", sequence: ["special1", "super"], description: "Dash com armadura no Super." },
-    { id: "d_c1", name: "Parry de Ombro", level: "counter", sequence: ["counter", "heavy", "special2"], description: "Contra, haymaker e uppercut." },
-    { id: "d_p1", name: "Erro no Clinch", level: "punish", sequence: ["throw", "special1"], description: "Agarrão de punição e investida." },
+    { id: "d_c1", name: "Parry de Ombro", level: "counter", sequence: ["counter", "heavy", "special2"], description: "Contra, haymaker e uppercut.", route: "link" },
+    { id: "d_p1", name: "Erro no Clinch", level: "punish", sequence: ["throw", "special1"], description: "Agarrão de punição e investida.", route: "link" },
   ],
   moves: {
     light: {
@@ -70,7 +70,7 @@ export const draven: CharacterDef = {
     heavy: {
       id: "heavy", name: "Haymaker", type: "normal", button: "heavy",
       damage: 128, range: 74, startup: 13, active: 4, recovery: 20, hitStun: 19, blockStun: 11,
-      knockback: 260, priority: 4, meterGain: 13, superGain: 7, cancelInto: ["special1", "special3", "super"], height: "mid",
+      knockback: 260, priority: 4, meterGain: 13, superGain: 7, cancelInto: ["special1", "special2", "special3", "super"], height: "mid",
       hitstop: 9,
     },
     kickLight: {

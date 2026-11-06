@@ -259,12 +259,12 @@ test('Blood Finish plays once and intro presents LUTAR', ()=>{
   assert.equal(results, 0);
 });
 
-test('service worker and runtime share version 0.21.0', async()=>{
+test('service worker and runtime share version 0.22.0', async()=>{
   const {readFileSync}=await import('node:fs');
   const {GAME_VERSION}=await import('../src/game/core/version.ts');
   const pkg=JSON.parse(readFileSync(new URL('../package.json', import.meta.url),'utf8'));
   const sw=readFileSync(new URL('../public/sw.js', import.meta.url),'utf8');
-  assert.equal(GAME_VERSION, '0.21.0');
+  assert.equal(GAME_VERSION, '0.22.0');
   assert.equal(pkg.version, GAME_VERSION);
   assert.match(sw, /__APP_VERSION__/);
   assert.match(sw, /brutal-blood-core/);
@@ -644,3 +644,57 @@ test('low attacks hit the shin and a finish walks its frames', async () => {
   assert.equal(classifyClip(kharonAssets, 'blockLow'), 'DEDICATED');
 });
 
+
+test('cancel-route combos match cancelInto; link/setup stay tagged', async () => {
+  const { PLAYABLE_FIGHTERS } = await import('../src/game/content/registry.ts');
+  const { assertCancelCombosLegal, comboRoute } = await import('../src/game/combat/comboRoutes.ts');
+  const gaps = assertCancelCombosLegal(PLAYABLE_FIGHTERS);
+  assert.deepEqual(gaps, []);
+  for (const f of PLAYABLE_FIGHTERS) {
+    assert.ok(f.moves.light.cancelInto?.includes('light'), `${f.id} light self-cancel`);
+    const routes = new Set(f.combos.map((c) => comboRoute(c)));
+    assert.ok(routes.has('cancel'), `${f.id} needs cancel routes`);
+  }
+  const kharon = PLAYABLE_FIGHTERS.find((x) => x.id === 'kharon');
+  assert.equal(comboRoute(kharon.combos.find((c) => c.id === 'k_air')), 'link');
+  assert.equal(comboRoute(kharon.combos.find((c) => c.id === 'k_m1')), 'setup');
+});
+
+test('jab can cancel into itself and buffer window is 0.2s', async () => {
+  const { GAME } = await import('../src/game/core/config.ts');
+  assert.equal(GAME.INPUT_BUFFER, 0.2);
+  const m = match();
+  m.p1.startAttack(kharon.moves.light);
+  m.p1.cancelReady = true;
+  assert.equal(m.p1.canCancel('light'), true);
+  assert.equal(m.p1.canCancel('medium'), true);
+  assert.equal(m.p1.canCancel('aerial'), false);
+});
+
+test('sprite sampling blends between cells without inventing frames', async () => {
+  const { sampleFrame } = await import('../src/game/graphics/SpriteAnimator.ts');
+  const clip = { name: 'idle', frames: 4, fps: 8, loop: true, pivotX: 0.5, pivotY: 1 };
+  const a = sampleFrame(clip, 4, 0, 8, { time: 0 });
+  assert.equal(a.frame, 0);
+  assert.ok(a.blend >= 0 && a.blend <= 1);
+  const b = sampleFrame(clip, 4, 0.08, 8, { time: 0.08 });
+  assert.ok(b.frame === 0 || b.frame === 1);
+  const atk = sampleFrame(
+    { name: 'light', frames: 4, fps: 12, loop: false, pivotX: 0.5, pivotY: 1, frameMap: [0, 1, 2, 3, 3, 2] },
+    4,
+    0,
+    12,
+    { time: 0, attack: kharon.moves.light, attackFrame: 6 },
+  );
+  assert.ok(atk.frame >= 0 && atk.frame <= 3);
+  assert.ok(atk.next >= 0 && atk.next <= 3);
+});
+
+test('eight procedural stages keep distinct props ids', async () => {
+  const { STAGES } = await import('../src/game/graphics/stages.ts');
+  assert.equal(STAGES.length, 8);
+  const ids = new Set(STAGES.map((s) => s.id));
+  const props = new Set(STAGES.map((s) => s.props));
+  assert.equal(ids.size, 8);
+  assert.equal(props.size, 8);
+});

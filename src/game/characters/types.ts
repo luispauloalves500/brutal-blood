@@ -61,12 +61,20 @@ export type MoveDef = {
   commandGrab?: boolean;
 };
 
+export type ComboRoute = "cancel" | "link" | "setup";
+
 export type ComboDef = {
   id: string;
   name: string;
   level: ComboLevel;
   sequence: string[];
   description: string;
+  /**
+   * cancel = cada passo deve estar em cancelInto do anterior (padrão).
+   * link = confirmação após hitstun / aterrissar / contra (sem cancel).
+   * setup = projétil ou espaço → chase (pode cancelar especial→especial).
+   */
+  route?: ComboRoute;
 };
 
 export type FinishDef = {

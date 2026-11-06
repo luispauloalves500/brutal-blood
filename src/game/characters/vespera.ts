@@ -1,7 +1,7 @@
 import { assetUrl } from "../assets/url";
 import type { CharacterDef } from "./types";
 
-const gatling = ["medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
+const gatling = ["light", "medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
 
 export const vespera: CharacterDef = {
   id: "vespera",
@@ -46,11 +46,11 @@ export const vespera: CharacterDef = {
   combos: [
     { id: "v_b1", name: "Látigo", level: "basic", sequence: ["light", "medium", "heavy"], description: "Gatling longo do véu." },
     { id: "v_i1", name: "Altar Confirmado", level: "intermediate", sequence: ["light", "heavy", "special2"], description: "Pesado no altar de sangue." },
-    { id: "v_i2", name: "Rosa e Véu", level: "intermediate", sequence: ["kickLight", "special3", "special1"], description: "Baixo, rosa, véu." },
+    { id: "v_i2", name: "Rosa e Véu", level: "intermediate", sequence: ["kickLight", "special3", "special1"], description: "Baixo, rosa, véu.", route: "setup" },
     { id: "v_a1", name: "Corte da Rainha", level: "advanced", sequence: ["light", "medium", "special1", "super"], description: "Projétil para Super." },
-    { id: "v_air", name: "Queda Hex", level: "air", sequence: ["aerial", "special1"], description: "Aéreo no véu." },
-    { id: "v_m1", name: "Zona Fechada", level: "meter", sequence: ["special2", "special3"], description: "Altar e rosa, gasta energia." },
-    { id: "v_c1", name: "Espelho", level: "counter", sequence: ["counter", "special1"], description: "Contra no véu." },
+    { id: "v_air", name: "Queda Hex", level: "air", sequence: ["aerial", "special1"], description: "Aéreo no véu.", route: "link" },
+    { id: "v_m1", name: "Zona Fechada", level: "meter", sequence: ["special2", "special3"], description: "Altar e rosa, gasta energia.", route: "setup" },
+    { id: "v_c1", name: "Espelho", level: "counter", sequence: ["counter", "special1"], description: "Contra no véu.", route: "link" },
     { id: "v_p1", name: "Erro na Aproximação", level: "punish", sequence: ["heavy", "special2"], description: "Punish de dash longo." },
   ],
   moves: {
@@ -99,13 +99,13 @@ export const vespera: CharacterDef = {
     special2: {
       id: "special2", name: "Altar de Sangue", type: "special", command: "22H",
       damage: 110, range: 280, startup: 18, active: 6, recovery: 28, hitStun: 16, blockStun: 10,
-      knockback: 120, priority: 4, meterGain: 5, superGain: 9, cost: 36, cancelInto: ["super"],
+      knockback: 120, priority: 4, meterGain: 5, superGain: 9, cost: 36, cancelInto: ["special3", "super"],
       height: "low", projectile: "altar", hitstop: 5,
     },
     special3: {
       id: "special3", name: "Rosa Negra", type: "special", command: "214K",
       damage: 132, range: 160, startup: 12, active: 8, recovery: 22, hitStun: 18, blockStun: 9,
-      knockback: 220, priority: 5, meterGain: 5, superGain: 10, cost: 32, cancelInto: ["super"],
+      knockback: 220, priority: 5, meterGain: 5, superGain: 10, cost: 32, cancelInto: ["special1", "super"],
       height: "mid", advance: -80, hitstop: 6,
     },
     super: {

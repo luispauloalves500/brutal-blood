@@ -1,6 +1,10 @@
-# BRUTAL BLOOD — 0.21.0
+# BRUTAL BLOOD — 0.22.0
 
 Jogo de luta 2D em React + TypeScript + Canvas 2D. **100% client-side**, offline-first, pronto para GitHub Pages (`dist/` apenas).
+
+## O que mudou na 0.22.0
+
+Combos com rota `cancel` passam a bater com `cancelInto` (jab cancela em jab; especiais de setup/meter alinhados). Rotas `link`/`setup` marcam aéreo, contra e projétil→chase sem abrir cancel livre. Buffer de ataque sobe para 0,2 s. Blood Finish caminha o clip inteiro em ~2,15 s. Sprites de poucos quadros ganham crossfade entre células (sem arte nova). Arenas procedurais ganham silhuetas e detalhes próprios. Warden/Nihl continuam fora; nenhuma folha WebP inventada.
 
 ## O que mudou na 0.21.0
 
@@ -79,5 +83,5 @@ npm run typecheck
 ## Docs
 
 - [`SPRITES-v0.15.0.md`](SPRITES-v0.15.0.md)
-- [`docs/VALIDACAO-v0.21.0.md`](docs/VALIDACAO-v0.21.0.md)
+- [`docs/VALIDACAO-v0.22.0.md`](docs/VALIDACAO-v0.22.0.md)
 - [`SPRITES-v0.14.0.md`](SPRITES-v0.14.0.md)

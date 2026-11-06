@@ -508,8 +508,9 @@ export class Match {
     if (!held) return;
     if (this.time > held.until) { this.buffered[slot] = null; return; }
     if (f.blocking || f.state === "block") return;
-    const ready = f.canAct() || f.cancelReady || f.state === "wakeup";
+    const ready = f.canAct() || f.cancelReady || f.state === "wakeup" || (f.state === "attack" && f.cancelReady);
     if (!ready) return;
+    // Prefer a legal cancel while cancelReady; otherwise wait until canAct.
     if (this.tryAttack(f, buf, held.btn)) this.buffered[slot] = null;
   }
 
@@ -940,10 +941,12 @@ export class Match {
       this.finishElapsed += dt;
       if (this.finisher) {
         this.finisher.stateTime += dt;
-        this.finisher.attackFrame += 1;
+        // Pace the cinematic so sparse finish sheets still walk every cell.
+        const total = Math.max(1, (this.finisher.attack?.startup ?? 10) + (this.finisher.attack?.active ?? 72) + (this.finisher.attack?.recovery ?? 28));
+        this.finisher.attackFrame = Math.min(total, Math.floor((this.finishElapsed / 2.15) * total));
       }
       this.particles.update(dt); this.camera.update(dt);
-      if (this.finishElapsed >= 1.6) this.concludeFinish();
+      if (this.finishElapsed >= 2.15) this.concludeFinish();
       return;
     }
     this.finishTimer -= dt;

@@ -1,7 +1,7 @@
 import { assetUrl } from "../assets/url";
 import type { CharacterDef } from "./types";
 
-const gatling = ["medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
+const gatling = ["light", "medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
 
 export const kharon: CharacterDef = {
   id: "kharon",
@@ -49,9 +49,9 @@ export const kharon: CharacterDef = {
     { id: "k_i1", name: "Investida Confirmada", level: "intermediate", sequence: ["light", "light", "heavy", "special1"], description: "Cancela o pesado na Investida Carmesim." },
     { id: "k_i2", name: "Corte Ascendente", level: "intermediate", sequence: ["kickLight", "medium", "special2"], description: "Chute leve para Guilhotina antiaérea." },
     { id: "k_a1", name: "Veredito", level: "advanced", sequence: ["light", "light", "medium", "heavy", "super"], description: "Gatling completo até o Super." },
-    { id: "k_air", name: "Queda do Machado", level: "air", sequence: ["aerial", "heavy"], description: "Ataque aéreo para pesado no pushback." },
-    { id: "k_m1", name: "Ceifar e Avançar", level: "meter", sequence: ["special3", "special1"], description: "Projétil para investida, gasta energia." },
-    { id: "k_c1", name: "Punição da Foice", level: "counter", sequence: ["counter", "heavy", "special2"], description: "Após o contra-ataque, pesado e antiaéreo." },
+    { id: "k_air", name: "Queda do Machado", level: "air", sequence: ["aerial", "heavy"], description: "Ataque aéreo para pesado no pushback.", route: "link" },
+    { id: "k_m1", name: "Ceifar e Avançar", level: "meter", sequence: ["special3", "special1"], description: "Projétil para investida, gasta energia.", route: "setup" },
+    { id: "k_c1", name: "Punição da Foice", level: "counter", sequence: ["counter", "heavy", "special2"], description: "Após o contra-ataque, pesado e antiaéreo.", route: "link" },
     { id: "k_p1", name: "Erro Fatal", level: "punish", sequence: ["heavy", "special1"], description: "Punish de golpe errado à curta distância." },
   ],
   moves: {
@@ -106,7 +106,7 @@ export const kharon: CharacterDef = {
     special3: {
       id: "special3", name: "Ceifar Almas", type: "special", command: "22H",
       damage: 90, range: 420, startup: 14, active: 4, recovery: 24, hitStun: 14, blockStun: 9,
-      knockback: 180, priority: 3, meterGain: 4, superGain: 8, cost: 35, cancelInto: ["super"],
+      knockback: 180, priority: 3, meterGain: 4, superGain: 8, cost: 35, cancelInto: ["special1", "super"],
       height: "mid", projectile: "scythe-wave", hitstop: 4,
     },
     super: {

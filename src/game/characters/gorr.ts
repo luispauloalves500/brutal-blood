@@ -1,7 +1,7 @@
 import { assetUrl } from "../assets/url";
 import type { CharacterDef } from "./types";
 
-const chain = ["medium", "heavy", "kickHeavy", "special1", "special2", "special3", "super"];
+const chain = ["light", "medium", "heavy", "kickHeavy", "special1", "special2", "special3", "super"];
 
 export const gorr: CharacterDef = {
   id: "gorr",
@@ -29,14 +29,14 @@ export const gorr: CharacterDef = {
     { id: "g_i1", name: "Sem Escapatória", level: "intermediate", sequence: ["light", "heavy", "special1"], description: "Pesado cancelado na investida blindada." },
     { id: "g_i2", name: "Correntes", level: "intermediate", sequence: ["medium", "special2"], description: "Pressão curta para command grab." },
     { id: "g_a1", name: "Banquete", level: "advanced", sequence: ["light", "medium", "heavy", "special1", "super"], description: "Rota de dano máximo com Super." },
-    { id: "g_air", name: "Queda do Devorador", level: "air", sequence: ["aerial", "heavy"], description: "Ataque aéreo para confirmação pesada." },
-    { id: "g_c1", name: "Fome Antiga", level: "counter", sequence: ["counter", "special2"], description: "Parry para agarrão de comando." },
+    { id: "g_air", name: "Queda do Devorador", level: "air", sequence: ["aerial", "heavy"], description: "Ataque aéreo para confirmação pesada.", route: "link" },
+    { id: "g_c1", name: "Fome Antiga", level: "counter", sequence: ["counter", "special2"], description: "Parry para agarrão de comando.", route: "link" },
   ],
   moves: {
     light: { id:"light", name:"Martelo Curto", type:"normal", button:"light", damage:60, range:70, startup:5, active:3, recovery:9, hitStun:12, blockStun:7, knockback:105, priority:2, meterGain:8, superGain:4, cancelInto:chain, height:"mid", hitstop:4 },
     medium: { id:"medium", name:"Ombro de Ferro", type:"normal", button:"medium", damage:86, range:84, startup:8, active:4, recovery:13, hitStun:15, blockStun:10, knockback:155, priority:3, meterGain:10, superGain:5, cancelInto:["heavy","kickHeavy","special1","special2","special3","super"], height:"mid", hitstop:5 },
     heavy: { id:"heavy", name:"Punho do Abismo", type:"normal", button:"heavy", damage:138, range:96, startup:14, active:6, recovery:21, hitStun:20, blockStun:13, knockback:285, priority:5, meterGain:13, superGain:7, cancelInto:["special1","special2","super"], height:"mid", armor:true, hitstop:9 },
-    kickLight: { id:"kickLight", name:"Canela de Ferro", type:"normal", button:"kickLight", damage:54, range:68, startup:6, active:3, recovery:11, hitStun:11, blockStun:6, knockback:95, priority:2, meterGain:7, superGain:3, cancelInto:["medium","heavy","special1"], height:"low", hitstop:3 },
+    kickLight: { id:"kickLight", name:"Canela de Ferro", type:"normal", button:"kickLight", damage:54, range:68, startup:6, active:3, recovery:11, hitStun:11, blockStun:6, knockback:95, priority:2, meterGain:7, superGain:3, cancelInto:["medium","heavy","kickHeavy","special1"], height:"low", hitstop:3 },
     kickHeavy: { id:"kickHeavy", name:"Pisão do Devorador", type:"normal", button:"kickHeavy", damage:142, range:82, startup:16, active:6, recovery:23, hitStun:22, blockStun:14, knockback:330, priority:5, meterGain:12, superGain:6, cancelInto:["special1","super"], height:"low", knockdown:true, hitstop:9 },
     aerial: { id:"aerial", name:"Queda do Colosso", type:"aerial", button:"heavy", damage:94, range:88, startup:8, active:8, recovery:10, hitStun:14, blockStun:9, knockback:195, priority:4, meterGain:9, superGain:4, height:"high", airOk:true, hitstop:5 },
     special1: { id:"special1", name:"Investida Carniceira", type:"special", command:"66H", damage:175, range:132, startup:12, active:8, recovery:20, hitStun:18, blockStun:11, knockback:360, priority:6, meterGain:5, superGain:10, cost:30, cancelInto:["super"], height:"mid", advance:470, armor:true, hitstop:7 },

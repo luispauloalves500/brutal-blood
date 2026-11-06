@@ -166,7 +166,7 @@ export function commandLabel(cmd: string): string {
 
 function dummyFinish(id: string, name: string): MoveDef {
   return {
-    id, name, type: "finish", damage: 0, range: 0, startup: 12, active: 48, recovery: 36,
-    hitStun: 0, blockStun: 0, knockback: 0, priority: 10, meterGain: 0,
+    id, name, type: "finish", damage: 0, range: 0, startup: 10, active: 72, recovery: 28,
+    hitStun: 0, blockStun: 0, knockback: 0, priority: 10, meterGain: 0, hitstop: 14,
   };
 }
