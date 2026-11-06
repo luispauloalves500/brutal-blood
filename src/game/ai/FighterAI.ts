@@ -127,7 +127,7 @@ export class FighterAI {
       this.f.block(false);
       this.f.stop();
       if (this.f.state === "wakeup") {
-        if (!this.tryMove("counter")) this.tryMove("super") || this.tryMove("special2");
+        if (!this.tryMove("counter") && !this.tryMove("super")) this.tryMove("special2");
       }
       return;
     }
@@ -212,15 +212,22 @@ export class FighterAI {
   }
 
   private punish(dist: number) {
-    if (dist > 110) this.tryMove(this.preferredSpecial()) || this.tryMove("heavy");
-    else this.tryMove("heavy") || this.tryMove("light");
+    if (dist > 110) {
+      if (!this.tryMove(this.preferredSpecial())) this.tryMove("heavy");
+    } else if (!this.tryMove("heavy")) {
+      this.tryMove("light");
+    }
   }
 
   private antiAir() {
     const id = this.f.data.id;
-    if (id === "draven" || id === "vespera" || id === "nyx") this.tryMove("special2") || this.tryMove("heavy");
-    else if (id === "shai") this.tryMove("special3") || this.tryMove("heavy");
-    else this.tryMove("heavy") || this.tryMove("special2");
+    if (id === "draven" || id === "vespera" || id === "nyx") {
+      if (!this.tryMove("special2")) this.tryMove("heavy");
+    } else if (id === "shai") {
+      if (!this.tryMove("special3")) this.tryMove("heavy");
+    } else if (!this.tryMove("heavy")) {
+      this.tryMove("special2");
+    }
   }
 
   private preferredSpecial() {
@@ -294,11 +301,11 @@ export class FighterAI {
   private press(dist: number, dx: number, p: Profile, _enemy: Fighter) {
     const id = this.f.data.id;
     if (id === "gorr" && dist < 70 && Math.random() < 0.28) {
-      this.tryMove("special2") || this.tryMove("throw");
+      if (!this.tryMove("special2")) this.tryMove("throw");
       return;
     }
     if (id === "draven" && dist < 62 && Math.random() < 0.22) {
-      this.tryMove("special3") || this.tryMove("throw");
+      if (!this.tryMove("special3")) this.tryMove("throw");
       return;
     }
     if (dist < 56 && Math.random() < 0.2) {

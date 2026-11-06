@@ -1,4 +1,4 @@
-# BRUTAL BLOOD — estrutura 0.21.0
+# BRUTAL BLOOD — estrutura 0.22.0
 
 ```text
 brutal-blood/

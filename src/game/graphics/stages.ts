@@ -80,42 +80,91 @@ function drawProps(ctx: CanvasRenderingContext2D, stage: StageDef) {
   switch (stage.props) {
     case "prison":
       for (const x of [80, 400, 760, 1080]) {
-        ctx.fillStyle="#050a10";ctx.fillRect(x,230,180,370);
-        ctx.strokeStyle="#354959";ctx.lineWidth=7;
-        for(let bar=0;bar<6;bar++){ctx.beginPath();ctx.moveTo(x+15+bar*30,230);ctx.lineTo(x+15+bar*30,600);ctx.stroke();}
-        ctx.fillStyle="#243442";ctx.fillRect(x-8,225,196,18);ctx.fillRect(x-8,580,196,16);
+        ctx.fillStyle = "#050a10";
+        ctx.fillRect(x, 230, 180, 370);
+        ctx.strokeStyle = "#354959";
+        ctx.lineWidth = 7;
+        for (let bar = 0; bar < 6; bar++) {
+          ctx.beginPath();
+          ctx.moveTo(x + 15 + bar * 30, 230);
+          ctx.lineTo(x + 15 + bar * 30, 600);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "#243442";
+        ctx.fillRect(x - 8, 225, 196, 18);
+        ctx.fillRect(x - 8, 580, 196, 16);
+        ctx.fillStyle = "#1a3038";
+        ctx.fillRect(x + 60, 420, 55, 90);
       }
       break;
     case "city":
-      for(let i=0;i<7;i++) {
-        const x=i*200-60,top=160+(i*97%170);
-        ctx.fillStyle=i%2?"#291e23":"#34232a";ctx.fillRect(x,top,135,620-top);
-        ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x+32,top-30);ctx.lineTo(x+56,top+12);ctx.lineTo(x+108,top-15);ctx.lineTo(x+135,top);ctx.fill();
-        ctx.fillStyle="#c8774945";
-        for(let row=0;row<4;row++) for(let col=0;col<3;col++) if((row+col+i)%3)ctx.fillRect(x+15+col*37,top+35+row*65,18,30);
+      for (let i = 0; i < 7; i++) {
+        const x = i * 200 - 60, top = 160 + ((i * 97) % 170);
+        ctx.fillStyle = i % 2 ? "#291e23" : "#34232a";
+        ctx.fillRect(x, top, 135, 620 - top);
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x + 32, top - 30);
+        ctx.lineTo(x + 56, top + 12);
+        ctx.lineTo(x + 108, top - 15);
+        ctx.lineTo(x + 135, top);
+        ctx.fill();
+        ctx.fillStyle = "#c8774945";
+        for (let row = 0; row < 4; row++)
+          for (let col = 0; col < 3; col++)
+            if ((row + col + i) % 3) ctx.fillRect(x + 15 + col * 37, top + 35 + row * 65, 18, 30);
+        ctx.fillStyle = "#00000055";
+        ctx.fillRect(x + 40, 560, 40, 60);
       }
       break;
     case "ruins":
-      for (let x = -30; x < 1320; x += 86) ctx.fillRect(x, 335, 48, 225 + (x % 172 ? 28 : 0));
+      for (let x = -30; x < 1320; x += 86) {
+        ctx.fillStyle = "#291019";
+        ctx.fillRect(x, 335, 48, 225 + (x % 172 ? 28 : 0));
+        ctx.fillStyle = "#3a1820";
+        ctx.fillRect(x + 8, 310, 12, 30);
+      }
+      ctx.fillStyle = "#41151c88";
+      ctx.fillRect(520, 400, 220, 28);
       break;
     case "temple":
       ctx.fillStyle = "#3a1018";
       for (const x of [120, 280, 980, 1140]) {
         ctx.fillRect(x, 220, 36, 400);
         ctx.fillRect(x - 10, 210, 56, 18);
+        ctx.fillStyle = "#5a1824";
+        ctx.beginPath();
+        ctx.moveTo(x - 14, 210);
+        ctx.lineTo(x + 18, 175);
+        ctx.lineTo(x + 50, 210);
+        ctx.fill();
+        ctx.fillStyle = "#3a1018";
       }
       ctx.fillRect(500, 260, 280, 24);
+      ctx.fillStyle = "#8a203055";
+      ctx.fillRect(560, 300, 160, 310);
       break;
     case "industrial":
       ctx.fillStyle = "#222830";
       ctx.fillRect(80, 280, 220, 340);
       ctx.fillRect(980, 240, 180, 380);
+      ctx.fillStyle = "#2e3640";
+      ctx.fillRect(100, 200, 40, 80);
+      ctx.fillRect(1040, 160, 50, 90);
       ctx.strokeStyle = "#3a4450";
       ctx.lineWidth = 8;
       ctx.beginPath();
       ctx.moveTo(300, 300);
       ctx.lineTo(980, 260);
       ctx.stroke();
+      ctx.strokeStyle = "#4a5560";
+      ctx.lineWidth = 3;
+      for (let i = 0; i < 6; i++) {
+        ctx.beginPath();
+        ctx.moveTo(320 + i * 100, 300 - i * 4);
+        ctx.lineTo(320 + i * 100, 340);
+        ctx.stroke();
+      }
       break;
     case "forest":
       ctx.fillStyle = "#0e2414";
@@ -124,7 +173,14 @@ function drawProps(ctx: CanvasRenderingContext2D, stage: StageDef) {
         ctx.beginPath();
         ctx.arc(x + 11, 250, 48, 0, Math.PI * 2);
         ctx.fill();
+        ctx.fillStyle = "#16301c";
+        ctx.beginPath();
+        ctx.arc(x + 11, 230, 28, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#0e2414";
       }
+      ctx.fillStyle = "#1e4a2844";
+      for (let i = 0; i < 8; i++) ctx.fillRect(60 + i * 150, 580, 40, 12);
       break;
     case "cathedral":
       ctx.fillStyle = "#1a1228";
@@ -138,14 +194,24 @@ function drawProps(ctx: CanvasRenderingContext2D, stage: StageDef) {
       ctx.fill();
       ctx.fillStyle = "#4a2060";
       ctx.fillRect(600, 300, 80, 310);
+      ctx.fillStyle = "#6a38a055";
+      for (let i = 0; i < 5; i++) ctx.fillRect(610, 320 + i * 50, 60, 28);
+      ctx.strokeStyle = "#8a60c080";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(210, 220, 20, 80);
+      ctx.strokeRect(1050, 220, 20, 80);
       break;
     case "fortress":
       ctx.fillStyle = "#301010";
       ctx.fillRect(40, 200, 240, 420);
       ctx.fillRect(1000, 180, 240, 440);
       for (let i = 0; i < 6; i++) ctx.fillRect(40 + i * 40, 170, 24, 30);
+      for (let i = 0; i < 6; i++) ctx.fillRect(1000 + i * 40, 150, 24, 30);
       ctx.fillStyle = "#501818";
       ctx.fillRect(500, 340, 280, 280);
+      ctx.fillStyle = "#80181866";
+      ctx.fillRect(560, 380, 60, 100);
+      ctx.fillRect(660, 380, 60, 100);
       break;
   }
 }

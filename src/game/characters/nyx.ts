@@ -1,7 +1,7 @@
 import { assetUrl } from "../assets/url";
 import type { CharacterDef } from "./types";
 
-const gatling = ["medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
+const gatling = ["light", "medium", "heavy", "kickLight", "kickHeavy", "special1", "special2", "special3", "super"];
 
 export const nyx: CharacterDef = {
   id: "nyx",
@@ -48,9 +48,9 @@ export const nyx: CharacterDef = {
     { id: "n_sig", name: "Passo da Lua", level: "intermediate", sequence: ["light", "heavy", "special1"], description: "Leve, frente+pesado e Passo do Eclipse. Exclusivo de Nyx." },
     { id: "n_i2", name: "Crescente", level: "intermediate", sequence: ["kickLight", "kickHeavy", "special2"], description: "Chutes para o deslize da Lua Crescente." },
     { id: "n_a1", name: "Noite Sem Fim", level: "advanced", sequence: ["light", "medium", "kickHeavy", "special2", "super"], description: "Launcher para Eclipse Total." },
-    { id: "n_air", name: "Queda Silenciosa", level: "air", sequence: ["aerial", "light", "special1"], description: "Aéreo, leve no chão, dash especial." },
-    { id: "n_m1", name: "Agulha e Eclipse", level: "meter", sequence: ["special3", "special1"], description: "Projétil para teleporte." },
-    { id: "n_c1", name: "Resposta do Vazio", level: "counter", sequence: ["counter", "medium", "special1"], description: "Contra-ataque para dash." },
+    { id: "n_air", name: "Queda Silenciosa", level: "air", sequence: ["aerial", "light", "special1"], description: "Aéreo, leve no chão, dash especial.", route: "link" },
+    { id: "n_m1", name: "Agulha e Eclipse", level: "meter", sequence: ["special3", "special1"], description: "Projétil para teleporte.", route: "setup" },
+    { id: "n_c1", name: "Resposta do Vazio", level: "counter", sequence: ["counter", "medium", "special1"], description: "Contra-ataque para dash.", route: "link" },
     { id: "n_p1", name: "Punição Longa", level: "punish", sequence: ["kickHeavy", "special2"], description: "Chute pesado de longo alcance após erro." },
   ],
   moves: {
@@ -105,7 +105,7 @@ export const nyx: CharacterDef = {
     special3: {
       id: "special3", name: "Agulha Sombria", type: "special", command: "22L",
       damage: 78, range: 480, startup: 11, active: 3, recovery: 18, hitStun: 12, blockStun: 8,
-      knockback: 140, priority: 3, meterGain: 4, superGain: 8, cost: 25, cancelInto: ["super"],
+      knockback: 140, priority: 3, meterGain: 4, superGain: 8, cost: 25, cancelInto: ["special1", "super"],
       height: "mid", projectile: "needle", hitstop: 3,
     },
     super: {

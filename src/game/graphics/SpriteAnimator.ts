@@ -157,10 +157,10 @@ export class SpriteAnimator {
     // Timing belongs to the move that was requested. Pixels may come from a borrowed sheet.
     const driver = this.clip(anim) ?? resolved.clip;
     const n = resolved.frames;
-    const i = pickFrame(driver, n, localTime, driver.fps || resolved.fps, opts);
+    const sample = sampleFrame(driver, n, localTime, driver.fps || resolved.fps, opts);
 
     this.lastAnim = anim;
-    this.lastFrame = i;
+    this.lastFrame = sample.frame;
     this.lastSrc = resolved.src;
     this.lastMode = resolved.mode;
     this.lastFallback = resolved.mode !== "DEDICATED";
@@ -174,10 +174,6 @@ export class SpriteAnimator {
     if (!iw || !ih) return false;
     const frameW = iw / cols;
     const frameH = ih / rows;
-    const col = i % cols;
-    const row = Math.min(rows - 1, driver.row ?? resolved.clip.row ?? Math.floor(i / cols));
-    const sx = col * frameW;
-    const sy = row * frameH;
 
     const visScale = (driver.scale ?? resolved.clip.scale ?? 1) * (h / frameH);
     const squash = opts.squash ?? 0;
@@ -195,14 +191,8 @@ export class SpriteAnimator {
       // Full-image palette fallback when no maskSrc is loaded.
       ctx.filter = paletteFilter(this.palette);
     }
-    ctx.drawImage(
-      pixels,
-      sx, sy, frameW, frameH,
-      -px * sxScale,
-      -py * syScale,
-      frameW * sxScale,
-      frameH * syScale,
-    );
+    // Crossfade between adjacent sheet cells. Does not invent art — only softens low frame counts.
+    drawBlendedFrame(ctx, pixels, cols, rows, frameW, frameH, sample.frame, sample.next, sample.blend, driver.row ?? resolved.clip.row, -px * sxScale, -py * syScale, frameW * sxScale, frameH * syScale);
     ctx.filter = "none";
     ctx.restore();
     return true;
@@ -294,21 +284,95 @@ function tintWithMask(
   return out;
 }
 
-function pickFrame(clip: AnimClip, n: number, time: number, fps: number, opts: DrawAnimOpts) {
+export type FrameSample = { frame: number; next: number; blend: number };
+
+/** Integer cell + optional blend to the next cell for smoother low-frame sheets. */
+export function sampleFrame(clip: AnimClip, n: number, time: number, fps: number, opts: DrawAnimOpts): FrameSample {
   const atk = opts.attack;
   if (atk && opts.attackFrame != null && isAttackClip(clip.name)) {
+    const total = Math.max(1, atk.startup + atk.active + atk.recovery);
     if (clip.frameMap && clip.frameMap.length) {
-      const total = Math.max(1, atk.startup + atk.active + atk.recovery);
-      const idx = Math.min(clip.frameMap.length - 1, Math.floor((opts.attackFrame / total) * clip.frameMap.length));
-      return ((clip.frameMap[idx] % n) + n) % n;
+      const exact = (opts.attackFrame / total) * clip.frameMap.length;
+      const idx = Math.min(clip.frameMap.length - 1, Math.floor(exact));
+      const nextIdx = Math.min(clip.frameMap.length - 1, idx + 1);
+      const frame = ((clip.frameMap[idx]! % n) + n) % n;
+      const next = ((clip.frameMap[nextIdx]! % n) + n) % n;
+      const blend = nextIdx === idx ? 0 : Math.min(1, Math.max(0, exact - idx));
+      return { frame, next, blend: softBlend(blend, n) };
     }
-    return attackMappedFrame(n, opts.attackFrame, atk.startup, atk.active, atk.recovery);
+    const exact = attackMappedExact(n, opts.attackFrame, atk.startup, atk.active, atk.recovery);
+    const frame = Math.min(n - 1, Math.floor(exact));
+    const next = Math.min(n - 1, frame + 1);
+    return { frame, next, blend: softBlend(exact - frame, n) };
   }
-  let i = clip.loop
-    ? Math.floor(time * fps) % n
-    : Math.min(n - 1, Math.floor(time * fps));
-  if (clip.reverseFrames) i = n - 1 - i;
-  return i;
+  const raw = time * fps;
+  let exact = clip.loop ? ((raw % n) + n) % n : Math.min(n - 1, Math.max(0, raw));
+  if (clip.reverseFrames) exact = n - 1 - exact;
+  // Keep reverseFrames on the integer lattice without negative blend.
+  if (clip.reverseFrames) {
+    const frame = Math.max(0, Math.min(n - 1, Math.round(exact)));
+    return { frame, next: frame, blend: 0 };
+  }
+  const frame = Math.min(n - 1, Math.floor(exact));
+  const next = clip.loop ? (frame + 1) % n : Math.min(n - 1, frame + 1);
+  return { frame, next, blend: softBlend(exact - frame, n) };
+}
+
+/** Stronger ease on sparse sheets (≤4 cells); lighter on rich sheets. */
+function softBlend(t: number, frames: number) {
+  const clamped = Math.min(1, Math.max(0, t));
+  if (frames <= 4) return clamped * clamped * (3 - 2 * clamped);
+  return clamped * 0.85;
+}
+
+function drawBlendedFrame(
+  ctx: CanvasRenderingContext2D,
+  pixels: CanvasImageSource,
+  cols: number,
+  rows: number,
+  frameW: number,
+  frameH: number,
+  frame: number,
+  next: number,
+  blend: number,
+  fixedRow: number | undefined,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
+) {
+  const drawCell = (index: number, alpha: number) => {
+    const col = index % cols;
+    const row = Math.min(rows - 1, fixedRow ?? Math.floor(index / cols));
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(pixels, col * frameW, row * frameH, frameW, frameH, dx, dy, dw, dh);
+  };
+  if (blend <= 0.02 || next === frame) {
+    drawCell(frame, 1);
+    ctx.globalAlpha = 1;
+    return;
+  }
+  drawCell(frame, 1);
+  drawCell(next, blend);
+  ctx.globalAlpha = 1;
+}
+
+function attackMappedExact(n: number, attackFrame: number, startup: number, active: number, recovery: number) {
+  const total = Math.max(1, startup + active + recovery);
+  const f = Math.max(0, Math.min(total, attackFrame));
+  const startN = Math.max(1, Math.round(n * 0.3));
+  const activeN = Math.max(1, Math.round(n * 0.4));
+  const recN = Math.max(1, n - startN - activeN);
+  if (f < startup) {
+    const t = startup <= 1 ? 0 : f / (startup - 1);
+    return Math.min(startN - 1, t * startN);
+  }
+  if (f < startup + active) {
+    const t = active <= 1 ? 1 : (f - startup) / Math.max(1, active - 1);
+    return Math.min(startN + activeN - 1, startN + t * activeN);
+  }
+  const t = recovery <= 1 ? 1 : (f - startup - active) / Math.max(1, recovery);
+  return Math.min(n - 1, startN + activeN + t * recN);
 }
 
 function isAttackClip(name: string) {
@@ -318,23 +382,6 @@ function isAttackClip(name: string) {
   ].includes(name);
 }
 
-function attackMappedFrame(n: number, attackFrame: number, startup: number, active: number, recovery: number) {
-  const total = Math.max(1, startup + active + recovery);
-  const f = Math.max(0, Math.min(total, attackFrame));
-  const startN = Math.max(1, Math.round(n * 0.3));
-  const activeN = Math.max(1, Math.round(n * 0.4));
-  const recN = Math.max(1, n - startN - activeN);
-  if (f < startup) {
-    const t = startup <= 1 ? 0 : f / (startup - 1);
-    return Math.min(startN - 1, Math.floor(t * startN));
-  }
-  if (f < startup + active) {
-    const t = active <= 1 ? 1 : (f - startup) / Math.max(1, active - 1);
-    return Math.min(startN + activeN - 1, startN + Math.floor(t * activeN));
-  }
-  const t = recovery <= 1 ? 1 : (f - startup - active) / Math.max(1, recovery);
-  return Math.min(n - 1, startN + activeN + Math.floor(t * recN));
-}
 
 function imageWidth(img: CanvasImageSource) {
   if (typeof HTMLImageElement !== "undefined" && img instanceof HTMLImageElement) return img.naturalWidth || img.width;
